@@ -1,0 +1,31 @@
+/* app/components/CategoryMenu.module.css */
+
+.categorySection {
+  padding: 20px;
+}
+
+.title {
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 15px;
+}
+
+.categoryCard {
+  border: 1px solid #CBD5E0;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  background-color: white;
+  cursor: pointer; /* ทำให้เมาส์เป็นรูปมือเมื่อชี้ */
+  transition: background-color 0.2s ease-in-out; /* ทำให้สีเปลี่ยนอย่างนุ่มนวล */
+}
+
+/* นี่คือส่วนสำคัญ: เอฟเฟกต์ตอนเอาเมาส์ไปชี้ */
+.categoryCard:hover {
+  background-color: #F1F5F9; /* เปลี่ยนเป็นสีเทาที่เข้มขึ้นเล็กน้อย */
+}

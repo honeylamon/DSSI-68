@@ -1,0 +1,59 @@
+.header {
+  background-color: #ffffff;
+  color: #333;
+  padding: 0.8rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.logo {
+  font-family: var(--font-pacifico); /* ต้องแน่ใจว่าได้ import font นี้ใน layout.js */
+  font-size: 2.2rem;
+  font-weight: 400;
+  color: #6a9c89;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.searchBar {
+  display: flex;
+  align-items: center;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 0.4rem 0.4rem 0.4rem 1rem;
+  width: 45%;
+}
+
+.searchBar input {
+  border: none;
+  outline: none;
+  background: transparent;
+  width: 100%;
+  font-family: var(--font-sarabun); /* ต้องแน่ใจว่าได้ import font นี้ใน layout.js */
+  font-size: 1rem;
+}
+
+.cameraButton {
+  background-color: #e0e0e0;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profileIcon {
+  font-size: 1.5rem;
+  cursor: pointer;
+}

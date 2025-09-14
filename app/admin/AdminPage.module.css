@@ -1,0 +1,152 @@
+.dashboardContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.header {
+  background-color: #6a9c89;
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+  font-family: var(--font-pacifico);
+  font-size: 2rem;
+  font-weight: 400;
+}
+
+.sellerText {
+  font-family: var(--font-sarabun);
+  font-size: 1.2rem;
+  font-weight: 400;
+  margin-left: 0.5rem;
+  opacity: 0.9;
+}
+
+.homeLink {
+  color: white;
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid white;
+  border-radius: 20px;
+  transition: background-color 0.2s;
+}
+.homeLink:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.main {
+  flex-grow: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.menuGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.menuCard {
+  background-color: white;
+  padding: 2rem 1rem;
+  text-align: center;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.menuCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.menuCard.active {
+  color: #6a9c89;
+  border-color: #6a9c89;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.productManager {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.managerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 1rem;
+}
+
+.managerHeader h2 {
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.addButton {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.addButton:hover {
+  background-color: #218838;
+}
+
+.productTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.productTable th, .productTable td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.productTable th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #555;
+}
+
+.productTable td button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-right: 0.5rem;
+  color: white;
+}
+
+.editButton { background-color: #007bff; }
+.editButton:hover { background-color: #0056b3; }
+
+.deleteButton { background-color: #dc3545; }
+.deleteButton:hover { background-color: #c82333; }
+.viewButton { background-color: #17a2b8; }
+.viewButton:hover { background-color: #117a8b; }

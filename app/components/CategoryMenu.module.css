@@ -29,3 +29,40 @@
 .categoryCard:hover {
   background-color: #F1F5F9; /* เปลี่ยนเป็นสีเทาที่เข้มขึ้นเล็กน้อย */
 }
+
+.menuGrid {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.menuItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 120px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px 8px;
+  box-shadow: 0 2px 8px #0001;
+  transition: box-shadow 0.2s;
+}
+
+.menuItem:hover {
+  box-shadow: 0 4px 16px #0002;
+}
+
+.menuImg {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #eee;
+}
+
+.menuLabel {
+  font-size: 1rem;
+  text-align: center;
+  margin-top: 4px;
+}

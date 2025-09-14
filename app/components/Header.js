@@ -1,53 +1,29 @@
-// app/components/Header.js
-import React from 'react';
-import Link from 'next/link'; // 1. Import <Link> เข้ามาใช้งาน
+'use client'; // กำหนดให้เป็น Client Component เพื่อใช้ hook และ event ต่างๆ ในอนาคต
+import Link from 'next/link';
+import styles from './Header.module.css';
 
-const Header = () => {
+// เราสามารถเพิ่ม Logic การ Login ตรงนี้ได้ในอนาคต
+export default function Header() {
+  const handleLoginClick = () => {
+    // ในอนาคตจะเปลี่ยนเป็นการเปิด Modal Login
+    alert('ส่วนนี้จะเชื่อมต่อกับระบบ Login ครับ');
+  };
+
   return (
-    <header style={{ 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center', 
-      padding: '10px 20px', 
-      backgroundColor: '#3B5D50', 
-      color: 'white' 
-    }}>
-      <div style={{ fontFamily: 'cursive', fontSize: '24px' }}>
+    <header className={styles.header}>
+      {/* คลิกที่โลโก้เพื่อกลับไปหน้าแรก */}
+      <Link href="/" className={styles.logo}>
         Baan joy
-      </div>
-      <div style={{ flexGrow: 0.5 }}>
-        <input 
-          type="text" 
-          placeholder="ค้นหาสินค้า..."
-          style={{ 
-            width: '100%', 
-            padding: '8px', 
-            borderRadius: '5px', 
-            border: 'none' 
-          }} 
-        />
+      </Link>
+
+      <div className={styles.searchBar}>
+        <input type="text" placeholder="ค้นหาสินค้า..." />
+        <button className={styles.cameraButton}>📷</button>
       </div>
 
-      {/* 2. แก้ไขส่วนของไอคอนโปรไฟล์ */}
-      <Link href="/signin" style={{ textDecoration: 'none' }}>
-        <div style={{ 
-          width: '40px', 
-          height: '40px', 
-          borderRadius: '50%', 
-          backgroundColor: 'white',
-          cursor: 'pointer', // เพิ่ม cursor pointer
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          color: 'black', // สีของไอคอนข้างใน (ถ้ามี)
-          fontSize: '24px'
-        }}>
-          👤 {/* ใส่ไอคอนรูปคน (ตัวอย่าง) */}
-        </div>
-      </Link>
-      
+      <div className={styles.profileIcon} onClick={handleLoginClick}>
+        <span>👤</span>
+      </div>
     </header>
   );
-};
-
-export default Header;
+}

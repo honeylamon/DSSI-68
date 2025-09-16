@@ -1,0 +1,127 @@
+.pageContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.section {
+  width: 100%;
+}
+
+.pageTitle {
+  font-size: 1.8rem;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+}
+
+.pageTitle span {
+  color: #6a9c89;
+  font-weight: 700;
+}
+
+/* --- Product Grid --- */
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
+
+.productCard {
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.productCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.12);
+}
+
+.productImageWrapper {
+  width: 100%;
+  background-color: #f5f5f5;
+}
+
+.productImageWrapper img {
+  width: 100%;
+  height: auto;
+  display: block;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+}
+
+.productInfo {
+  padding: 1rem;
+}
+
+.productName {
+  font-size: 1rem;
+  font-weight: 400;
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.productPrice {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #d0021b;
+}
+
+.noProducts {
+  text-align: center;
+  padding: 3rem;
+  color: #777;
+  font-size: 1.1rem;
+}
+
+/* --- Pagination --- */
+.paginationControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 3rem;
+  gap: 1.5rem;
+}
+
+.pageLink {
+  background-color: #6a9c89;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 20px;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.pageLink:hover {
+  background-color: #557d6e;
+}
+
+.pageLink.disabled {
+  background-color: #ccc;
+  pointer-events: none;
+  cursor: default;
+}
+
+.pageIndicator {
+  font-weight: 500;
+  color: #555;
+}
+
+/* Back link */
+.backLinkContainer {
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.backLink {
+    color: #557d6e;
+    text-decoration: none;
+    font-weight: 500;
+}
+.backLink:hover {
+    text-decoration: underline;
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import pb from '../lip/pocketbase'; // << แก้ไข path ให้ถูกต้อง
+import pb from '../lib/pocketbase'; // << แก้ไข path ให้ถูกต้อง
 import styles from './AdminDashboard.module.css';
 
 export default function AdminDashboard() {

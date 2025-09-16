@@ -5,7 +5,7 @@ const Banner = () => {
   return (
     <div style={{ position: 'relative', width: '100%', height: '300px' }}>
       <Image
-        src="/images/bander.jpg" // <-- เปลี่ยนชื่อไฟล์ตรงนี้
+        src="/images/bander.jpg"  // <-- เปลี่ยนชื่อไฟล์ตรงนี้
         alt="Baan Joy Banner"
         layout="fill"
         objectFit="cover"

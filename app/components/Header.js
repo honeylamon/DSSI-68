@@ -1,11 +1,31 @@
-// app/components/Header.js
-'use client'; // <-- 1. เพิ่มบรรทัดนี้เพื่อบอกว่าเป็น Client Component
+'use client'; 
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '../contexts/AuthContext'; // <-- 2. Import useAuth เข้ามา
+// --- 1. แก้ไข Path ของ AuthContext ---
+import { useAuth } from '@/app/contexts/AuthContext'; 
+// --- 2. Import CartContext เข้ามา ---
+import { useCart } from '@/app/contexts/CartContext'; 
 
-const Header = () => {
-  const { user, logout } = useAuth(); // <-- 3. เรียกใช้ useAuth เพื่อดึงข้อมูล user
+// --- 3. ลบบรรทัดที่ import ตัวเองทิ้งไป ---
+// import Header from '@/components/Header'; // <-- ลบบรรทัดนี้
+
+// --- 4. เปลี่ยนเป็น 'export default function' เพื่อความชัดเจน ---
+export default function Header() {
+  const { user, logout } = useAuth();
+  const { cartItems } = useCart();
+  const router = useRouter();
+  const [query, setQuery] = useState('');
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (query.trim()) {
+      router.push(`/search?q=${query}`);
+    }
+  };
+  
+  const totalCartItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <header style={{
@@ -17,11 +37,15 @@ const Header = () => {
       color: 'white'
     }}>
       <Link href="/" style={{ fontFamily: 'cursive', fontSize: '24px', textDecoration: 'none', color: 'white' }}>
-        Baan joy
+        Baan Joy
       </Link>
-      <div style={{ flexGrow: 0.5 }}>
+      
+      {/* --- ช่องค้นหาที่ใช้งานได้ --- */}
+      <form onSubmit={handleSearch} style={{ flexGrow: 0.5 }}>
         <input
           type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="ค้นหาสินค้า..."
           style={{
             width: '100%',
@@ -30,19 +54,18 @@ const Header = () => {
             border: 'none'
           }}
         />
-      </div>
+      </form>
 
-      {/* --- 4. ส่วนสำคัญ: เปลี่ยนการแสดงผลตามสถานะ user --- */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        {/* --- ตะกร้าสินค้า --- */}
+        <Link href="/cart" style={{ color: 'white', textDecoration: 'none', fontSize: '16px' }}>
+          ตะกร้า ({totalCartItems})
+        </Link>
+        
+        {/* --- ส่วน Login --- */}
         {user ? (
-          // === ถ้า user ล็อกอินแล้ว ===
           <>
             <span style={{ fontSize: '14px' }}>Welcome, {user.name || user.email}</span>
-            {user.role === 'admin' && (
-              <Link href="/admin" style={{ color: 'white', textDecoration: 'underline' }}>
-                Admin
-              </Link>
-            )}
             <button 
               onClick={logout} 
               style={{ 
@@ -57,7 +80,6 @@ const Header = () => {
             </button>
           </>
         ) : (
-          // === ถ้า user ยังไม่ได้ล็อกอิน ===
           <Link href="/signin" style={{ textDecoration: 'none' }}>
             <div style={{
               width: '40px',
@@ -80,4 +102,3 @@ const Header = () => {
   );
 };
 
-export default Header;

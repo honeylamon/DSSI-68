@@ -1,80 +1,68 @@
-.pageBg {
-  background: #f7f7f7;
-  min-height: 100vh;
+.homeContainer {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem 1rem;
+  box-sizing: border-box;
 }
-.header {
-  display: flex;
-  align-items: center;
-  background: #5d8a7a;
-  padding: 16px 32px;
-  border-radius: 12px 12px 0 0;
+
+.bannerContainer {
+  width: 100%;
+  margin: 1.5rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
-.logo {
-  font-family: 'Pacifico', cursive;
+
+.title {
   font-size: 2rem;
-  color: #fff;
-  flex: 1;
+  color: #3B5D50;
+  text-align: left;
+  margin: 2rem 0 1.5rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #eee;
 }
-.searchBox {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 6px;
-  padding: 4px 8px;
-  margin-right: 24px;
-}
-.searchBox input {
-  border: none;
-  outline: none;
-  padding: 6px 8px;
-  font-size: 1rem;
-  background: transparent;
-}
-.cameraBtn {
-  background: none;
-  border: none;
-  font-size: 1.3rem;
-  cursor: pointer;
-}
-.profileBtn {
-  background: #fff;
-  border-radius: 50%;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
+
+.categoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1.5rem;
   justify-content: center;
-  font-size: 1.5rem;
 }
-.banner {
+
+.categoryCard {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  background-color: #fff;
+}
+
+.categoryCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+.categoryImageWrapper {
+  width: 100%;
+  aspect-ratio: 1 / 1; /* ทำให้เป็นสี่เหลี่ยมจัตุรัส */
   position: relative;
-  width: 100%;
-  margin: 24px 0;
+  background-color: #f9f9f9;
 }
-.bannerImg {
+
+.categoryImageWrapper img {
   width: 100%;
-  height: 180px;
+  height: 100%;
   object-fit: cover;
-  border-radius: 12px;
 }
-.bannerText {
-  position: absolute;
-  bottom: 18px;
-  right: 32px;
-  color: #fff;
-  font-size: 2rem;
-  font-family: 'Pacifico', cursive;
-  text-shadow: 1px 1px 8px #0008;
-}
-.section {
-  margin: 24px 0 0 0;
-  padding: 0 32px;
-}
-.sectionTitle {
-  font-size: 1.3rem;
-  margin-bottom: 12px;
-}
-.productGrid {
-  display: flex;
-  gap: 18px;
+
+.categoryName {
+  padding: 0.75rem 1rem;
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+  background-color: #fafafa;
+  border-top: 1px solid #eee;
 }

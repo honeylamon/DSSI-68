@@ -1,0 +1,222 @@
+/* --- โค้ดเดิม (ส่วน Container, h1, itemList...) --- */
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1rem 2rem 2rem 2rem;
+  font-family: 'Tahoma', sans-serif;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  background-color: #ffffff;
+}
+
+.container h1 {
+  text-align: center;
+  color: #3B5D50;
+  margin-bottom: 2rem;
+  font-weight: bold;
+}
+
+.itemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* --- [อัปเกรด] .item --- */
+.item {
+  display: flex;
+  align-items: center;
+  gap: 1rem; /* เพิ่ม gap เล็กน้อย */
+  padding: 1rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+/* --- [เพิ่มใหม่] สไตล์สำหรับ Checkbox ใน item --- */
+.itemCheckbox {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0; /* ไม่ให้มันหด */
+  margin-right: 0.5rem;
+}
+
+.itemImage {
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.itemName {
+  flex-grow: 1;
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.quantityInput {
+  width: 60px;
+  text-align: center;
+  padding: 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.itemPrice {
+  min-width: 120px;
+  text-align: right;
+  font-size: 1.1rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.removeButton {
+  padding: 0.5rem 1rem;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+.removeButton:hover {
+  background-color: #d32f2f;
+}
+
+/* --- [เพิ่มใหม่] สไตล์สำหรับแถบ "เลือกทั้งหมด" --- */
+.selectAllBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 1rem;
+}
+.selectAllBar label {
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.selectAllBar input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+/* --- จบส่วนที่เพิ่มใหม่ --- */
+
+
+/* --- โค้ดเดิม (ส่วน summaryContainer...) --- */
+.summaryContainer {
+  margin-top: 2rem;
+  padding: 1.5rem 2rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+.summaryContainer h2 {
+  color: #3B5D50;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+  margin-top: 0;
+  font-size: 1.3rem; /* ปรับขนาดเล็กน้อย */
+}
+.summaryDetails {
+  margin-bottom: 1.5rem;
+  margin-top: 1rem;
+}
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+.summaryRow span:last-child {
+  font-weight: 600;
+}
+.summaryRow.total {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #3B5D50;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+}
+.checkoutForm {
+  margin-top: 1.5rem;
+}
+.checkoutForm h3 {
+  margin-bottom: 0.5rem;
+}
+.deliveryOptions {
+  display: flex;
+  gap: 2rem;
+  margin: 1rem 0;
+  font-size: 1.1rem;
+}
+.deliveryOptions label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+/* --- โค้ดเดิม (ส่วนที่อยู่) --- */
+.addressDisplay {
+  margin-top: 1.5rem;
+}
+.addressDisplay label {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+.addressBox {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 1rem;
+}
+.addressBox p {
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+.addressBox p:last-child {
+  margin-bottom: 0;
+}
+.addAddressButton {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #3B5D50;
+  background-color: transparent;
+  border: 2px solid #3B5D50;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+.addAddressButton:hover {
+  background-color: #3B5D50;
+  color: #fff;
+}
+.confirmButton {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  margin-top: 1.5rem;
+}
+.confirmButton:hover {
+  background-color: #218838;
+}

@@ -1,5 +1,3 @@
-// app/page.js
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,12 +5,21 @@ import Link from 'next/link';
 import Image from 'next/image';
 import PocketBase from 'pocketbase';
 import Banner from './components/Banner'; // นำเข้า Banner component
+import styles from './HomePage.module.css'; // <-- หน้าแรก ต้อง import ไฟล์นี้
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+// ใช้ IP จริง หรือ 127.0.0.1 ตามที่คุณใช้งาน
+const pb = new PocketBase('http://122.155.211.233:8090');
 
 function getImageUrl(record, filename) {
-    if (!record || !filename) return '/images/placeholder.jpg';
-    return pb.getFileUrl(record, filename, { 'thumb': '100x100' });
+    if (!record || !filename) {
+        return '/placeholder.jpg'; // ต้องมีรูปนี้ใน public/placeholder.jpg
+    }
+    try {
+        return pb.getFileUrl(record, filename, { 'thumb': '200x200' });
+    } catch (e) {
+        console.error('Error getting file URL:', e);
+        return '/placeholder.jpg';
+    }
 }
 
 export default function HomePage() {
@@ -20,19 +27,29 @@ export default function HomePage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        const controller = new AbortController();
+        const signal = controller.signal;
+
         const fetchCategories = async () => {
             try {
                 const result = await pb.collection('categories').getFullList({
                     sort: 'name',
+                    signal: signal, 
                 });
                 setCategories(result);
             } catch (error) {
-                console.error('Failed to fetch categories:', error);
+                if (!error.isAbort) { 
+                    console.error('Failed to fetch categories:', error);
+                }
             } finally {
                 setIsLoading(false);
             }
         };
         fetchCategories();
+
+        return () => {
+            controller.abort();
+        };
     }, []);
 
     if (isLoading) {
@@ -40,39 +57,31 @@ export default function HomePage() {
     }
 
     return (
-        <div style={{ padding: '20px' }}>
-            <Banner /> {/* เพิ่ม Banner component ที่นี่ */}
+        <div>
+            <Banner />
             
-            <h1>หมวดหมู่</h1>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center' }}>
-                {categories.map((category) => (
-                    <Link href={`/category/${category.id}`} key={category.id} passHref>
-                        <div style={{
-                            width: '200px',
-                            border: '1px solid #ccc',
-                            borderRadius: '10px',
-                            padding: '10px',
-                            textAlign: 'center',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                            transition: 'transform 0.2s',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                        }}>
-                            <Image
-                                src={getImageUrl(category, category.picture)}
-                                alt={category.name}
-                                width={100}
-                                height={100}
-                                objectFit="cover"
-                                style={{ borderRadius: '5px' }}
-                            />
-                            <h2 style={{ fontSize: '1.2rem', marginTop: '10px' }}>{category.name}</h2>
-                        </div>
-                    </Link>
-                ))}
+            <div className={styles.homeContainer}> {/* ใช้ class จาก module */}
+                <h1 className={styles.title}>หมวดหมู่สินค้า</h1>
+                <div className={styles.categoryGrid}>
+                    {categories.map((category) => (
+                        <Link href={`/category/${category.id}`} key={category.id} passHref>
+                            <div className={styles.categoryCard}>
+                                <div className={styles.categoryImageWrapper}>
+                                  <Image
+                                      src={getImageUrl(category, category.image)} 
+                                      alt={category.name}
+                                      width={150} 
+                                      height={150}
+                                      objectFit="cover"
+                                  />
+                                </div>
+                                <h2 className={styles.categoryName}>{category.name}</h2>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
             </div>
         </div>
     );
 }
+

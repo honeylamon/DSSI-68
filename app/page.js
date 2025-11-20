@@ -5,14 +5,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import PocketBase from 'pocketbase';
 import Banner from './components/Banner'; // นำเข้า Banner component
-import styles from './HomePage.module.css'; // <-- หน้าแรก ต้อง import ไฟล์นี้
+import styles from './HomePage.module.css'; // หน้าแรก ต้อง import ไฟล์นี้
 
-// ใช้ IP จริง หรือ 127.0.0.1 ตามที่คุณใช้งาน
-const pb = new PocketBase('http://122.155.211.233:8090');
+// ตรวจสอบว่า IP นี้ถูกต้อง
+const pb = new PocketBase('http://127.0.0.1:8090');
 
 function getImageUrl(record, filename) {
     if (!record || !filename) {
-        return '/placeholder.jpg'; // ต้องมีรูปนี้ใน public/placeholder.jpg
+        return '/bander.jpg'; // ต้องมีรูปนี้ใน public/placeholder.jpg
     }
     try {
         return pb.getFileUrl(record, filename, { 'thumb': '200x200' });
@@ -34,11 +34,11 @@ export default function HomePage() {
             try {
                 const result = await pb.collection('categories').getFullList({
                     sort: 'name',
-                    signal: signal, 
+                    signal: signal,
                 });
                 setCategories(result);
             } catch (error) {
-                if (!error.isAbort) { 
+                if (!error.isAbort) {
                     console.error('Failed to fetch categories:', error);
                 }
             } finally {
@@ -59,8 +59,8 @@ export default function HomePage() {
     return (
         <div>
             <Banner />
-            
-            <div className={styles.homeContainer}> {/* ใช้ class จาก module */}
+
+            <div className={styles.homeContainer}>
                 <h1 className={styles.title}>หมวดหมู่สินค้า</h1>
                 <div className={styles.categoryGrid}>
                     {categories.map((category) => (
@@ -68,9 +68,9 @@ export default function HomePage() {
                             <div className={styles.categoryCard}>
                                 <div className={styles.categoryImageWrapper}>
                                   <Image
-                                      src={getImageUrl(category, category.image)} 
+                                      src={getImageUrl(category, category.image)}
                                       alt={category.name}
-                                      width={150} 
+                                      width={150}
                                       height={150}
                                       objectFit="cover"
                                   />
@@ -84,4 +84,3 @@ export default function HomePage() {
         </div>
     );
 }
-

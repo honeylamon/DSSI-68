@@ -1,218 +1,185 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // ต้อง import useEffect
 import { useCart } from '@/app/contexts/CartContext';
-import styles from './CartPage.module.css';
-import Image from 'next/image';
-import PocketBase from 'pocketbase';
 import Link from 'next/link';
-
-// ... (ส่วน pb และ getProductImageUrl เหมือนเดิม) ...
-const pb = new PocketBase('http://122.155.211.233:8090');
-
-function getProductImageUrl(record, filename) {
-  if (!record || !filename) {
-    return '/placeholder.jpg'; 
-  }
-  try {
-    if (typeof record.id === 'undefined' || typeof record.collectionId === 'undefined') {
-        if (typeof filename === 'string' && filename.startsWith('http')) {
-            return filename;
-        }
-        return '/placeholder.jpg';
-    }
-    return pb.getFileUrl(record, filename, { 'thumb': '100x100' });
-  } catch (e) {
-    console.error('Error getting file URL:', e, record);
-    return '/placeholder.jpg';
-  }
-}
-
+import pb from '@/app/lib/pocketbase';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react'; // ✅ Import useState
 
 export default function CartPage() {
-  // --- [อัปเกรด] ดึงฟังก์ชันใหม่ๆ มาใช้ ---
-  const { 
-    cartItems, 
-    address, 
-    removeFromCart, 
-    updateQuantity, 
-    // clearCart, // เราจะเปลี่ยนไปใช้ removeSelectedItems
-    toggleItemSelection,
-    toggleAllSelection,
-    removeSelectedItems
-  } = useCart();
-  
-  const [deliveryMethod, setDeliveryMethod] = useState('pickup');
-
-  // --- [อัปเกรด] คำนวณราคาสินค้า *เฉพาะที่ติ๊กเลือก* ---
-  const selectedItems = cartItems.filter(item => item.selected);
-  
-  const subtotal = selectedItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  const shippingFee = (deliveryMethod === 'shipping' && selectedItems.length > 0) ? 50 : 0; // ถ้ามีของที่เลือกและส่ง ค่อยคิดค่าส่ง
-  const totalPrice = subtotal + shippingFee;
-
-  // --- [อัปเกรด] ตัวแปรสำหรับ Checkbox "เลือกทั้งหมด" ---
-  // เช็คว่าติ๊กหมดทุกช่องหรือยัง (และต้องมีสินค้าอย่างน้อย 1 ชิ้น)
-  const isAllSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
-
-  const handleToggleAll = () => {
-    // ถ้าตอนนี้ติ๊กหมดแล้ว -> ให้เอาติ๊กออกทั้งหมด
-    // ถ้ายังติ๊กไม่หมด -> ให้ติ๊กทั้งหมด
-    toggleAllSelection(!isAllSelected);
-  };
-
-  // --- [อัปเกรด] แก้ไข handleCheckout ---
-  const handleCheckout = (e) => {
-    e.preventDefault();
+    const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
+    const { user } = useAuth();
+    const router = useRouter();
     
-    // --- [อัปเกรด] เช็คว่ามีของที่ "ติ๊กเลือก" หรือไม่ ---
-    if (selectedItems.length === 0) {
-      alert("กรุณาติ๊กเลือกสินค้าที่ต้องการสั่งซื้อก่อนครับ!");
-      return;
-    }
-    
-    if (deliveryMethod === 'shipping' && !address) {
-      alert("กรุณาเพิ่มที่อยู่สำหรับจัดส่งด้วยครับ (กดปุ่ม +)");
-      return;
-    }
-
-    const orderDetails = `
-      รายการสินค้า (ที่สั่งซื้อ):
-      ${selectedItems.map(item => `- ${item.name} x ${item.quantity}`).join('\n')} 
-      --------------------
-      ราคารวมทั้งหมด: ${totalPrice.toLocaleString()} บาท
-      วิธีการรับสินค้า: ${deliveryMethod === 'pickup' ? 'รับที่หน้าร้าน' : 'จัดส่งพัสดุ'}
-      ${deliveryMethod === 'shipping' ? `
-      ที่อยู่จัดส่ง:
-      ชื่อ: ${address.name}
-      โทร: ${address.phone}
-      ที่อยู่: ${address.fullAddress}
-      ` : ''}
-    `;
-
-    console.log("ข้อมูลการสั่งซื้อ:", {
-      items: selectedItems, // ส่งไปเฉพาะของที่เลือก
-      totalPrice,
-      deliveryMethod,
-      address: deliveryMethod === 'shipping' ? address : 'N/A'
+    // ✅ 1. State สำหรับเก็บข้อมูลที่อยู่
+    const [addressDetails, setAddressDetails] = useState({
+        recipient: user?.name || '', // ดึงชื่อจาก user ที่ล็อกอินเป็นค่าเริ่มต้น
+        phone: '',
+        address: '',
+        city: '',
+        postcode: ''
     });
 
-    alert("การสั่งซื้อสำเร็จ!\n" + orderDetails);
-    
-    // --- [อัปเกรด] ลบเฉพาะสินค้าที่ติ๊กเลือก ออกจากตะกร้า ---
-    removeSelectedItems();
-  };
+    const totalPrice = Array.isArray(cart) 
+        ? cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+        : 0;
 
-  return (
-    <div className={styles.container}>
-      <h1>ตะกร้าสินค้า</h1>
-      {cartItems.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-          <p>ยังไม่มีสินค้าในตะกร้า</p>
-          <Link href="/" style={{ color: '#3B5D50', textDecoration: 'underline' }}>กลับไปเลือกซื้อสินค้า</Link>
-        </div>
-      ) : (
-        <>
-          {/* --- [เพิ่มใหม่] ปุ่มเลือกทั้งหมด --- */}
-          <div className={styles.selectAllBar}>
-            <input 
-              type="checkbox"
-              id="selectAll"
-              checked={isAllSelected}
-              onChange={handleToggleAll}
-            />
-            <label htmlFor="selectAll">เลือกทั้งหมด ({cartItems.length} ชิ้น)</label>
-          </div>
+    // --- ฟังก์ชันสั่งซื้อสินค้า ---
+    const handleCheckout = async () => {
+        if (!user) {
+            alert('กรุณาเข้าสู่ระบบก่อนชำระเงิน');
+            router.push('/signin');
+            return;
+        }
+
+        if (cart.length === 0) return;
         
-          <ul className={styles.itemList}>
-            {cartItems.map(item => (
-              <li key={item.id} className={styles.item}>
-                {/* --- [เพิ่มใหม่] Checkbox ของสินค้าแต่ละชิ้น --- */}
-                <input 
-                  type="checkbox"
-                  className={styles.itemCheckbox}
-                  checked={item.selected}
-                  onChange={() => toggleItemSelection(item.id)}
-                />
-                <Image
-                  src={getProductImageUrl(item, item.picture)}
-                  alt={item.name}
-                  width={80}
-                  height={80}
-                  className={styles.itemImage}
-                />
-                <span className={styles.itemName}>{item.name}</span>
-                <input
-                  type="number"
-                  value={item.quantity}
-                  onChange={(e) => updateQuantity(item.id, e.target.value)}
-                  min="1"
-                  className={styles.quantityInput}
-                />
-                <span className={styles.itemPrice}>{(item.price * item.quantity).toLocaleString()} บาท</span>
-                <button onClick={() => removeFromCart(item.id)} className={styles.removeButton}>ลบ</button>
-              </li>
-            ))}
-          </ul>
+        // ✅ 2. Validation ตรวจสอบข้อมูลที่อยู่
+        if (!addressDetails.recipient || !addressDetails.address || !addressDetails.phone || !addressDetails.postcode) {
+            alert('กรุณากรอกข้อมูลที่อยู่และเบอร์โทรศัพท์ให้ครบถ้วน');
+            return;
+        }
 
-          <div className={styles.summaryContainer}>
-            <h2>สรุปรายการ (เฉพาะสินค้าที่เลือก)</h2>
-            <div className={styles.summaryDetails}>
-              <div className={styles.summaryRow}>
-                {/* --- [อัปเกรด] แสดงจำนวนของที่เลือก --- */}
-                <span>ราคาสินค้า ({selectedItems.length} ชิ้น)</span>
-                <span>{subtotal.toLocaleString()} บาท</span>
-              </div>
-              <div className={styles.summaryRow}>
-                <span>ค่าจัดส่ง</span>
-                <span>{shippingFee.toLocaleString()} บาท</span>
-              </div>
-              <div className={`${styles.summaryRow} ${styles.total}`}>
-                <span>ราคารวมทั้งหมด</span>
-                <span>{totalPrice.toLocaleString()} บาท</span>
-              </div>
+        try {
+            // 3. เตรียมข้อมูลลง Database
+            const data = {
+                user: user.id,
+                items: JSON.stringify(cart),
+                total_price: totalPrice,
+                status: 'pending',
+                // ✅ 4. ส่งข้อมูลที่อยู่เป็น JSON
+                address_detail: JSON.stringify(addressDetails), 
+            };
+
+            // สร้าง Order ใน PocketBase
+            await pb.collection('orders').create(data);
+            
+            // ล้างตะกร้า
+            if (clearCart) {
+                clearCart();
+            } else {
+                cart.forEach(item => removeFromCart(item.id));
+            }
+
+            alert('สั่งซื้อสำเร็จ! โปรดตรวจสอบสถานะในหน้าประวัติคำสั่งซื้อ');
+            router.push('/profile/orders'); // ไปหน้าประวัติการสั่งซื้อ (สมมติว่ามี)
+
+        } catch (error) {
+            console.error(error);
+            alert('เกิดข้อผิดพลาดในการสร้าง Order: กรุณาตรวจสอบ API Rules/Field ใน PocketBase');
+        }
+    };
+
+    // กรณีตะกร้าว่าง
+    if (!cart || cart.length === 0) {
+        return (
+            <div style={{ textAlign: 'center', padding: '50px' }}>
+                <h1 style={{color: '#333'}}>ตะกร้าสินค้าของคุณว่างเปล่า</h1>
+                <Link href="/" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                    กลับไปเลือกซื้อสินค้า
+                </Link>
+            </div>
+        );
+    }
+
+    // --- ส่วนแสดงผล ---
+    const inputStyle = {
+        width: '100%',
+        padding: '10px',
+        margin: '5px 0 15px 0',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        boxSizing: 'border-box'
+    };
+
+    const labelStyle = {
+        fontWeight: 'bold',
+        display: 'block',
+        marginTop: '10px'
+    };
+
+    return (
+        <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+            <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>ตะกร้าสินค้า</h1>
+            
+            {/* รายการสินค้า (เหมือนเดิม) */}
+            <div style={{ marginTop: '20px' }}>
+                {cart.map(item => {
+                    const imageUrl = item.image 
+                        ? pb.files.getUrl(item, item.image) 
+                        : 'https://via.placeholder.com/80?text=No+Image';
+
+                    return (
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '1.5rem 0', borderBottom: '1px solid #eee' }}>
+                            
+                            <div style={{ width: '80px', height: '80px', flexShrink: 0, marginRight: '1.5rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9'}}>
+                                <img src={imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                            
+                            <div style={{ flexGrow: 1 }}>
+                                <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem' }}>{item.name}</h3>
+                                <p style={{ margin: 0, color: '#666' }}>{item.price} บาท</p>
+                            </div>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                <button onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} style={{ padding: '5px 10px', background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>-</button>
+                                <span style={{ padding: '0 15px', fontWeight: 'bold' }}>{item.quantity}</span>
+                                <button onClick={() => updateQuantity(item.id, item.quantity + 1)} style={{ padding: '5px 10px', background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>+</button>
+                            </div>
+                            
+                            <button onClick={() => removeFromCart(item.id)} style={{ marginLeft: '2rem', color: '#ef4444', background: 'none', border: '1px solid #ef4444', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>ลบ</button>
+                        </div>
+                    );
+                })}
             </div>
 
-            <form onSubmit={handleCheckout} className={styles.checkoutForm}>
-              {/* ... (ส่วนเลือกวิธีรับสินค้า และ ที่อยู่ เหมือนเดิม) ... */}
-              <h3>เลือกวิธีรับสินค้า</h3>
-              <div className={styles.deliveryOptions}>
-                <label>
-                  <input type="radio" value="pickup" checked={deliveryMethod === 'pickup'} onChange={(e) => setDeliveryMethod(e.target.value)} />
-                  รับที่หน้าร้าน
-                </label>
-                <label>
-                  <input type="radio" value="shipping" checked={deliveryMethod === 'shipping'} onChange={(e) => setDeliveryMethod(e.target.value)} />
-                  จัดส่งพัสดุ
-                </label>
-              </div>
-
-              {deliveryMethod === 'shipping' && (
-                <div className={styles.addressDisplay}>
-                  <label>ที่อยู่สำหรับจัดส่ง</label>
-                  {address ? (
-                    <div className={styles.addressBox}>
-                      <p><strong>{address.name}</strong> ({address.phone})</p>
-                      <p>{address.fullAddress}</p>
-                      {address.note && <p><i>หมายเหตุ: {address.note}</i></p>}
+            {/* ✅ ส่วนฟอร์มที่อยู่จัดส่ง */}
+            <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fefefe' }}>
+                <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>ที่อยู่จัดส่ง</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    
+                    <div>
+                        <label style={labelStyle}>ชื่อผู้รับ</label>
+                        <input type="text" style={inputStyle} value={addressDetails.recipient} 
+                               onChange={(e) => setAddressDetails({...addressDetails, recipient: e.target.value})} />
                     </div>
-                  ) : (
-                    <p>ยังไม่ได้เพิ่มที่อยู่จัดส่ง</p>
-                  )}
-                  <Link href="/checkout/address" className={styles.addAddressButton}>
-                    {address ? 'แก้ไขที่อยู่' : '➕ เพิ่มที่อยู่ใหม่'}
-                  </Link>
+                    <div>
+                        <label style={labelStyle}>เบอร์โทรศัพท์</label>
+                        <input type="text" style={inputStyle} value={addressDetails.phone} 
+                               onChange={(e) => setAddressDetails({...addressDetails, phone: e.target.value})} />
+                    </div>
                 </div>
-              )}
-              {/* --- จบส่วนที่อยู่ --- */}
+                
+                <label style={labelStyle}>ที่อยู่ (บ้านเลขที่, ถนน, ตำบล)</label>
+                <input type="text" style={inputStyle} value={addressDetails.address} 
+                       onChange={(e) => setAddressDetails({...addressDetails, address: e.target.value})} />
 
-              <button type="submit" className={styles.confirmButton}>
-                ยืนยันการสั่งซื้อ ({selectedItems.length} ชิ้น)
-              </button>
-            </form>
-          </div>
-        </>
-      )}
-    </div>
-  );
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div>
+                        <label style={labelStyle}>จังหวัด/เมือง</label>
+                        <input type="text" style={inputStyle} value={addressDetails.city} 
+                               onChange={(e) => setAddressDetails({...addressDetails, city: e.target.value})} />
+                    </div>
+                    <div>
+                        <label style={labelStyle}>รหัสไปรษณีย์</label>
+                        <input type="text" style={inputStyle} value={addressDetails.postcode} 
+                               onChange={(e) => setAddressDetails({...addressDetails, postcode: e.target.value})} />
+                    </div>
+                </div>
+            </div>
+
+            {/* สรุปยอดและปุ่มชำระเงิน */}
+            <div style={{ marginTop: '2rem', textAlign: 'right', borderTop: '2px solid #eee', paddingTop: '20px' }}>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '10px' }}>ยอดรวม: <span style={{ color: '#10b981' }}>{totalPrice.toLocaleString()}</span> บาท</h2>
+                
+                <button 
+                    onClick={handleCheckout}
+                    style={{ padding: '12px 30px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                    ชำระเงิน
+                </button>
+            </div>
+        </div>
+    );
 }

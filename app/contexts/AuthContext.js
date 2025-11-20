@@ -1,49 +1,62 @@
 'use client';
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import pb from '../lib/pocketbase';
+import { createContext, useContext, useState, useEffect } from 'react';
+import pb from '../lib/pocketbase'; // ตรวจสอบ path ให้ถูกต้อง (ปกติคือ ../lib/pocketbase)
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  // 1. เริ่มต้น state ทั้งหมดเป็น null หรือ true เพื่อให้ Server และ Client เหมือนกัน
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [user, setUser] = useState(null);
 
-  useEffect(() => {
-    // 2. ใช้ useEffect เพื่อเช็คสถานะล็อกอิน "หลังจาก" ที่หน้าเว็บโหลดเสร็จแล้วเท่านั้น
-    // useEffect จะทำงานเฉพาะฝั่ง Client
-    
-    // ตั้งค่า user state จาก authStore ที่อาจมีอยู่แล้วใน cookie
-    setUser(pb.authStore.model);
+    // 1. ตรวจสอบสถานะล็อกอินเมื่อโหลดหน้าเว็บ
+    useEffect(() => {
+        // ถ้ามีข้อมูลใน LocalStorage ของ PocketBase ให้ดึงมาใช้ได้เลย
+        if (pb.authStore.isValid) {
+            setUser(pb.authStore.model);
+        }
+    }, []);
 
-    // ติดตามการเปลี่ยนแปลงของ authStore (เมื่อมีการ login/logout)
-    const unsubscribe = pb.authStore.onChange((token, model) => {
-      setUser(model);
-    });
-    
-    // เมื่อเช็คเสร็จแล้ว ให้ตั้งค่า loading เป็น false
-    setLoading(false);
-    
-    // Cleanup function: หยุดติดตามเมื่อ component ถูก unmount
-    return () => {
-      unsubscribe();
+    // 2. ฟังก์ชันสำหรับสมัครสมาชิก
+    const signup = async (email, password, passwordConfirm, name) => {
+        // สร้าง object ข้อมูล
+        const data = {
+            email,
+            password,
+            passwordConfirm,
+            name,
+        };
+        
+        // ส่งคำขอสร้าง user (ถ้า error จะ throw ออกไปให้หน้าเว็บจัดการ)
+        await pb.collection('users').create(data);
+        
+        // สมัครเสร็จแล้ว ล็อกอินให้อัตโนมัติเลย
+        await login(email, password);
     };
-  }, []); // [] หมายถึงให้ทำงานแค่ครั้งเดียวตอนเริ่มต้น
-  
-  const logout = () => {
-    pb.authStore.clear();
-  };
 
-  const value = { user, logout, loading };
+    // 3. ฟังก์ชันสำหรับล็อกอิน (ตัวสำคัญที่แก้ปัญหา login is not a function)
+    const login = async (email, password) => {
+        // ส่งคำขอล็อกอิน
+        await pb.collection('users').authWithPassword(email, password);
+        
+        // ถ้าล็อกอินผ่าน บรรทัดนี้จะทำงาน: อัปเดตสถานะ User
+        setUser(pb.authStore.model);
+    };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+    // 4. ฟังก์ชันสำหรับออกจากระบบ
+    const logout = () => {
+        pb.authStore.clear(); // ล้างข้อมูลใน PocketBase
+        setUser(null);        // ล้างข้อมูลใน State
+    };
+
+    // ส่งตัวแปรและฟังก์ชันทั้งหมดออกไปให้หน้าอื่นใช้
+    return (
+        <AuthContext.Provider value={{ user, signup, login, logout }}>
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
+// Custom Hook เพื่อให้เรียกใช้ได้ง่ายๆ เช่น const { login } = useAuth();
 export function useAuth() {
-  return useContext(AuthContext);
+    return useContext(AuthContext);
 }

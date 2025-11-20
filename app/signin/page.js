@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import pb from '../lib/pocketbase';
+import { useAuth } from '@/app/contexts/AuthContext';
 
 export default function LoginPage() {
     const router = useRouter();
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
@@ -16,13 +18,10 @@ export default function LoginPage() {
         e.preventDefault();
 
         try {
-            // ยืนยันตัวตนกับ PocketBase
-            await pb.collection('users').authWithPassword(email, password);
+            // 1. ส่งข้อมูลไปล็อกอิน
+            await login(email, password);
             
-            // ไม่ต้องใช้ alert แล้ว เพราะ Header จะเปลี่ยนไปเอง
-            // alert("Login successful!");
-            
-            // เมื่อล็อกอินสำเร็จ ให้กลับไปที่หน้าแรก
+            // 2. ไม่ว่าจะเป็นใคร (Admin หรือ ลูกค้า) ให้กลับไปหน้าแรกเหมือนกันหมด
             router.push('/');
 
         } catch (error) {
@@ -33,12 +32,8 @@ export default function LoginPage() {
     // ฟังก์ชันสำหรับล็อกอินด้วย Facebook
     const handleFacebookLogin = async () => {
         try {
-            // ยืนยันตัวตนด้วย Facebook (OAuth2)
             await pb.collection('users').authWithOAuth2({ provider: 'facebook' });
-            
-            // เมื่อล็อกอินสำเร็จ ให้กลับไปที่หน้าแรก
             router.push('/');
-
         } catch (error) {
             alert(`Facebook login failed: ${error.message}`);
         }
@@ -46,7 +41,7 @@ export default function LoginPage() {
 
     return (
         <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-            <h2>Login</h2>
+            <h2>เข้าสู่ระบบ</h2>
             <form onSubmit={handleLogin}>
                 <div style={{ marginBottom: '15px' }}>
                     <label>Email</label>

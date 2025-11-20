@@ -1,75 +1,85 @@
-// app/category/[slug]/page.js (Server Component)
+// app/category/[slug]/page.js
 
-import Image from 'next/image';
-import PocketBase from 'pocketbase';
 import Link from 'next/link';
-import { useCart } from '@/app/contexts/CartContext'; // Import hook ตะกร้าสินค้า 
-import ProductList from './ProductList';
+import PocketBase from 'pocketbase';
+import ProductList from '../../components/ProductList';
+
+// ==================== ✅ FIX #1: บอก Next.js ว่าหน้านี้เป็น Dynamic ====================
+export const dynamic = 'force-dynamic';
+// =================================================================================
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
-// ฟังก์ชันสำหรับสร้าง URL ของรูปภาพจาก PocketBase (เหมือนเดิม)
 function getProductImageUrl(record, filename) {
     if (!record || !filename) {
-        return '/images/placeholder.jpg';
+        return '/placeholder.jpg';
     }
-    try {
-        return pb.getFileUrl(record, filename, { 'thumb': '100x100' });
-    } catch (e) {
-        console.error(`Error generating image URL for record ID ${record.id}:`, e);
-        return '/images/placeholder.jpg';
-    }
+    return pb.files.getURL(record, filename, { 'thumb': '100x100' });
 }
 
-// รับค่า `params` และ `searchParams` จาก Next.js (เหมือนเดิม)
 export default async function CategoryProductsPage({ params, searchParams }) {
-    // ... ส่วนโค้ดดึงข้อมูลทั้งหมดจาก PocketBase ยังคงเหมือนเดิมเป๊ะ ...
     const categoryId = params.slug;
-    const currentPage = parseInt(searchParams.page) || 1;
-    const itemsPerPage = 5;
-    let categoryName = '...';
-    let products = [];
-    let totalPages = 1;
-    let error = null;
+
+    // ==================== ✅ FIX #2: ปรับปรุงวิธีดึงค่า page ====================
+    const page = searchParams['page'] ?? '1';
+    const currentPage = parseInt(page, 10);
+    // ======================================================================
+
+    const itemsPerPage = 10;
+    let categoryName = 'หมวดหมู่';
+
     try {
-        const categoryData = await pb.collection('categories').getOne(categoryId);
-        categoryName = categoryData.name;
-        const productsData = await pb.collection('products').getList(currentPage, itemsPerPage, {
-            filter: `relation = "${categoryId}"`,
-            sort: '-created',
-        });
-        products = productsData.items;
-        totalPages = productsData.totalPages;
-    } catch (e) {
-        error = 'ไม่สามารถโหลดข้อมูลได้';
-        console.error("An error occurred on the server:", e);
-    }
-    
-    // ... ส่วนจัดการ error และ "ไม่พบสินค้า" ยังคงเหมือนเดิม ...
-    if (error) {
-        return <div style={{ padding: '2rem', textAlign: 'center', color: 'red' }}>{error}</div>;
-    }
-    if (products.length === 0) {
-        return <div style={{ padding: '2rem', textAlign: 'center' }}>ไม่พบสินค้าในหมวดหมู่นี้</div>;
-    }
+        const [categoryData, productsData] = await Promise.all([
+            pb.collection('categories').getOne(categoryId),
+            pb.collection('products').getList(currentPage, itemsPerPage, {
+                filter: `relation = "${categoryId}"`,
+                sort: '-created',
+            })
+        ]);
+        
+        const categoryName = categoryData.name;
+        const products = productsData.items;
+        const totalPages = productsData.totalPages;
 
-    // --- 2. เตรียมข้อมูล (product พร้อม imageUrl) ก่อนส่งให้ Client Component ---
-    const productsWithImages = products.map(product => ({
-        product: product, // ข้อมูลสินค้าทั้งหมด
-        imageUrl: getProductImageUrl(product, product.picture) // URL รูปภาพ
-    }));
+        if (products.length === 0) {
+            return (
+                <div style={{ padding: '2rem' }}>
+                    <h1>สินค้าในหมวดหมู่: {categoryName}</h1>
+                    <div style={{ padding: '4rem', textAlign: 'center', color: '#555' }}>
+                        ไม่พบสินค้าในหมวดหมู่นี้
+                    </div>
+                </div>
+            );
+        }
 
-    return (
-        <div style={{ padding: '2rem' }}>
-            <h1>สินค้าในหมวดหมู่: {categoryName}</h1>
-            
-            {/* --- 3. เปลี่ยนจาก .map เดิม มาใช้ Component ใหม่ตรงนี้ --- */}
-            <ProductList productsWithImages={productsWithImages} />
+        const productsWithImages = products.map(p => ({
+            product: p,
+            imageUrl: getProductImageUrl(p, p.picture)
+        }));
 
-            {/* ส่วน Pagination ยังคงเหมือนเดิม */}
-            <div style={{ marginTop: '20px' }}>
-                {/* ... โค้ด Pagination ทั้งหมดของคุณ ... */}
+        return (
+            <div style={{ padding: '2rem' }}>
+                <h1>สินค้าในหมวดหมู่: {categoryName}</h1>
+                <ProductList productsWithImages={productsWithImages} />
+
+                {/* Pagination */}
+                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                    {currentPage > 1 && <Link href={`/category/${categoryId}?page=${currentPage - 1}`}>Previous</Link>}
+                    <span>Page {currentPage} of {totalPages}</span>
+                    {currentPage < totalPages && <Link href={`/category/${categoryId}?page=${currentPage + 1}`}>Next</Link>}
+                </div>
             </div>
-        </div>
-    );
+        );
+
+    } catch (e) {
+        console.error("Error fetching data:", e);
+        return (
+            <div style={{ padding: '2rem' }}>
+                 <h1>เกิดข้อผิดพลาด</h1>
+                 <div style={{ padding: '4rem', textAlign: 'center', color: 'red' }}>
+                    ไม่สามารถโหลดข้อมูลได้
+                 </div>
+            </div>
+        );
+    }
 }

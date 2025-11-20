@@ -1,133 +1,87 @@
+// app/contexts/CartContext.js
 'use client';
 
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
+// 1. สร้าง Context
 const CartContext = createContext();
-const CART_KEY = 'cart';
-const ADDRESS_KEY = 'shippingAddress';
 
 export function CartProvider({ children }) {
-  const [cartItems, setCartItems] = useState([]);
-  const [address, setAddress] = useState(null);
+    const [cart, setCart] = useState([]);
 
-  // --- โหลดข้อมูล ---
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedCart = localStorage.getItem(CART_KEY);
-      if (storedCart) {
-        
-        // --- [แก้ไข] นี่คือจุดที่ผมทำพลาดครับ ---
-        const parsedCart = JSON.parse(storedCart);
-        
-        // 1. "cartWithSelection" ต้องไม่มีเครื่องหมายคำพูด
-        const cartWithSelection = parsedCart.map(item => ({
-          ...item,
-          price: parseFloat(item.price), // 3. [อัปเกรด] แปลง price เป็นตัวเลข
-          quantity: parseInt(item.quantity, 10), // 3. [อัปเกรด] แปลง quantity เป็นตัวเลข
-          selected: item.selected !== undefined ? item.selected : true,
-        }));
-        
-        // 2. setCartItems ต้องรับตัวแปร (array) ไม่ใช่ string
-        setCartItems(cartWithSelection); 
-      }
-      
-      const storedAddress = localStorage.getItem(ADDRESS_KEY);
-      if (storedAddress) {
-        setAddress(JSON.parse(storedAddress));
-      }
-    }
-  }, []);
+    // 2. เมื่อเปิดเว็บครั้งแรก ให้ดึงข้อมูลตะกร้าที่เคยบันทึกไว้ (ถ้ามี)
+    useEffect(() => {
+        try {
+            const storedCart = localStorage.getItem('my-cart');
+            if (storedCart) {
+                setCart(JSON.parse(storedCart));
+            }
+        } catch (error) {
+            console.error("Failed to parse cart from localStorage", error);
+        }
+    }, []);
 
-  // --- บันทึกตะกร้า (เหมือนเดิม) ---
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(CART_KEY, JSON.stringify(cartItems));
-    }
-  }, [cartItems]);
+    // ==================== ✅ FIX HERE / นี่คือส่วนที่สำคัญที่สุดที่หายไป ====================
+    // 3. ทุกครั้งที่ state 'cart' มีการเปลี่ยนแปลง ให้บันทึกข้อมูลใหม่ลงไป
+    useEffect(() => {
+        // ไม่ต้องบันทึกถ้าเป็น state เริ่มต้นที่ยังเป็น array ว่าง
+        if (cart.length > 0 || localStorage.getItem('my-cart')) {
+             localStorage.setItem('my-cart', JSON.stringify(cart));
+        }
+    }, [cart]);
+    // =================================================================================
 
-  // --- บันทึกที่อยู่ (เหมือนเดิม) ---
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(ADDRESS_KEY, JSON.stringify(address));
-    }
-  }, [address]);
+    // 4. Logic การเพิ่มสินค้า (อันนี้ถูกต้องอยู่แล้ว แต่ใส่ไว้เพื่อความสมบูรณ์)
+    const addToCart = (product) => {
+        setCart(prevCart => {
+            const existingItem = prevCart.find(item => item.id === product.id);
 
+            if (existingItem) {
+                // ถ้ามีของอยู่แล้ว ให้อัปเดตจำนวน +1
+                return prevCart.map(item =>
+                    item.id === product.id
+                        ? { ...item, quantity: item.quantity + 1 }
+                        : item
+                );
+            } else {
+                // ถ้ายังไม่มี ให้เพิ่มเข้าไปใหม่ และกำหนดจำนวนเป็น 1
+                return [...prevCart, { ...product, quantity: 1 }];
+            }
+        });
+    };
 
-  const saveAddress = (addressData) => {
-    setAddress(addressData);
-  };
+    // (เพิ่มเติม) Logic การลบและอัปเดตจำนวน
+    const removeFromCart = (productId) => {
+        setCart(prevCart => prevCart.filter(item => item.id !== productId));
+    };
 
-  // --- [อัปเกรด] addToCart ---
-  const addToCart = (product) => {
-    setCartItems(prevItems => {
-      const exist = prevItems.find(item => item.id === product.id);
-      const productPrice = parseFloat(product.price); // [อัปเกรด] แปลงราคาทันที
-
-      if (exist) {
-        return prevItems.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1, selected: true } : item
+    const updateQuantity = (productId, newQuantity) => {
+        if (newQuantity < 1) {
+            removeFromCart(productId);
+            return;
+        }
+        setCart(prevCart =>
+            prevCart.map(item =>
+                item.id === productId ? { ...item, quantity: newQuantity } : item
+            )
         );
-      }
-      // [อัปเกรด] เพิ่ม price ที่แปลงเป็นตัวเลขแล้ว
-      return [...prevItems, { ...product, price: productPrice, quantity: 1, selected: true }];
-    });
-  };
+    };
 
-  // --- [อัปเกรด] updateQuantity (เพื่อให้แน่ใจว่าเป็นตัวเลข) ---
-  const updateQuantity = (productId, quantity) => {
-    const numQuantity = parseInt(quantity, 10); // ใช้ parseInt(..., 10)
-    if (isNaN(numQuantity) || numQuantity < 1) return; // [อัปเกรด] เช็ค isNaN ด้วย
+    const value = {
+        cart,
+        addToCart,
+        removeFromCart,
+        updateQuantity
+    };
 
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId ? { ...item, quantity: numQuantity } : item
-      )
+    return (
+        <CartContext.Provider value={value}>
+            {children}
+        </CartContext.Provider>
     );
-  };
-
-  const removeFromCart = (productId) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
-  };
-
-  const toggleItemSelection = (productId) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === productId ? { ...item, selected: !item.selected } : item
-      )
-    );
-  };
-
-  const toggleAllSelection = (select) => {
-    setCartItems(prevItems =>
-      prevItems.map(item => ({ ...item, selected: select }))
-    );
-  };
-
-  const removeSelectedItems = () => {
-    setCartItems(prevItems => prevItems.filter(item => !item.selected));
-  };
-  
-  const clearCart = () => {
-    setCartItems([]);
-    setAddress(null); 
-  };
-
-  const value = { 
-    cartItems, 
-    address, 
-    saveAddress, 
-    addToCart, 
-    removeFromCart, 
-    updateQuantity, 
-    clearCart,
-    toggleItemSelection,
-    toggleAllSelection,
-    removeSelectedItems
-  };
-
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
+// 5. Custom Hook เพื่อง่ายต่อการเรียกใช้
 export function useCart() {
-  return useContext(CartContext);
+    return useContext(CartContext);
 }

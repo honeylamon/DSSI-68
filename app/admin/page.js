@@ -1,131 +1,128 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import pb from '../lib/pocketbase';
-import AdminAuthGuard from '../components/AdminAuthGuard';
-import ProductEditRow from '../components/ProductEditRow';
 
 export default function AdminPage() {
-    const [existingProducts, setExistingProducts] = useState([]);
-    const [newRows, setNewRows] = useState([]);
-    const [categories, setCategories] = useState([]);
+  const router = useRouter();
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-    const fetchAllData = async () => {
-        try {
-            const productRecords = await pb.collection('products').getFullList({ expand: 'relation', sort: '-created' });
-            const categoryRecords = await pb.collection('categories').getFullList();
-            
-            setExistingProducts(productRecords);
-            setCategories(categoryRecords);
-        } catch (error) { console.error("Failed to fetch data:", error); }
-    };
-
-    useEffect(() => { fetchAllData(); }, []);
-
-    // --- ส่วนจัดการ "สินค้าใหม่" ---
-    const handleAddRow = () => setNewRows(prev => [...prev, { id: Date.now(), picture: null }]);
-    const handleUpdateNewRow = (id, updatedData) => setNewRows(prev => prev.map(row => (row.id === id ? { ...row, ...updatedData } : row)));
-    const handleDeleteNewRow = (id) => setNewRows(prev => prev.filter(row => row.id !== id));
-    const handleSaveNewProducts = async () => {
-        if (newRows.length === 0) return alert("ไม่มีสินค้าใหม่ให้บันทึก");
-        try {
-            for (const row of newRows) {
-                const formData = new FormData();
-                formData.append('name', row.name);
-                formData.append('price', row.price);
-                formData.append('stock', row.stock);
-                formData.append('relation', row.relation);
-                if (row.picture) formData.append('picture', row.picture);
-                await pb.collection('products').create(formData);
-            }
-            alert("บันทึกสินค้าใหม่ทั้งหมดเรียบร้อย!");
-            setNewRows([]);
-            fetchAllData();
-        } catch (error) { alert(`เกิดข้อผิดพลาด: ${error.message}`); }
-    };
-
-    // --- ส่วนจัดการ "สินค้าที่มีอยู่แล้ว" ---
-    const handleUpdateExistingProduct = (id, updatedData) => {
-        setExistingProducts(prev => prev.map(p => (p.id === id ? { ...p, ...updatedData } : p)));
-    };
-    
-    const handleSaveExistingProduct = async (productId) => {
-        try {
-            const productToSave = existingProducts.find(p => p.id === productId);
-            if (!productToSave) return;
-            
-            const formData = new FormData();
-            formData.append('name', productToSave.name);
-            formData.append('price', productToSave.price);
-            formData.append('stock', productToSave.stock);
-            formData.append('relation', productToSave.relation);
-            
-            if (productToSave.picture instanceof File) {
-                formData.append('picture', productToSave.picture);
-            }
-            
-            await pb.collection('products').update(productId, formData);
-            alert(`อัปเดตสินค้า "${productToSave.name}" สำเร็จ!`);
-            await fetchAllData();
-        } catch (error) {
-            alert(`อัปเดตไม่สำเร็จ: ${error.message}`);
+  // --- 1. ตรวจสอบสิทธิ์ ---
+  useEffect(() => {
+    const checkAuth = () => {
+        const model = pb.authStore.model;
+        if (!pb.authStore.isValid || !model || model.role !== 'admin') {
+            alert("Access denied: เฉพาะ Admin เท่านั้น");
+            router.push('/'); 
+        } else {
+            setIsAuthorized(true);
+            fetchProducts();
         }
     };
+    checkAuth();
+  }, [router]);
 
-    const handleDeleteExistingProduct = async (productId, productName) => {
-        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบ "${productName}"?`)) {
-            try {
-                await pb.collection('products').delete(productId);
-                alert('ลบสินค้าสำเร็จ!');
-                fetchAllData();
-            } catch (error) { alert(`เกิดข้อผิดพลาดในการลบ: ${error.message}`); }
-        }
-    };
+  // --- 2. ดึงข้อมูลสินค้า (แก้ Error ตรงนี้) ---
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      // ✅ ใส่ requestKey: null -> สั่งให้ห้ามยกเลิกคำสั่ง แม้จะโหลดซ้ำ (แก้ Auto-cancelled)
+      // ✅ ลบ expand: 'relation' ออก -> เพราะไม่มี field นี้จริง
+      const records = await pb.collection('products').getFullList({ 
+        sort: '-created',
+        requestKey: null 
+      });
+      setProducts(records);
+    } catch (error) {
+      // ถ้าเป็น error จากการยกเลิก (Auto-cancel) ไม่ต้องแจ้งเตือนแดงๆ
+      if (error.isAbort) return;
+      console.error("Error fetching products:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    return (
-        <AdminAuthGuard>
-            <div style={{ padding: '20px', maxWidth: '1200px', margin: 'auto' }}>
-                <h1>จัดการสินค้า (Admin)</h1>
-                
-                {/* ส่วนเพิ่มสินค้าใหม่ */}
-                <div style={{ border: '1px solid #ccc', padding: '15px', marginTop: '20px', borderRadius: '8px' }}>
-                    <h2>เพิ่มสินค้าใหม่</h2>
-                    {newRows.map(row => (
-                        <ProductEditRow key={row.id} rowData={row} onUpdate={handleUpdateNewRow} onDelete={handleDeleteNewRow} categories={categories} />
-                    ))}
-                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                        <button onClick={handleAddRow}>+ เพิ่มแถว</button>
-                        <button onClick={handleSaveNewProducts} style={{backgroundColor: 'green', color: 'white'}}>บันทึกสินค้าใหม่ทั้งหมด</button>
-                    </div>
-                </div>
+  // --- 3. ฟังก์ชัน เพิ่ม/แก้ไข/ลบ ---
+  const handleCreate = async () => {
+    const name = prompt("ชื่อสินค้า:");
+    if (!name) return;
+    const price = prompt("ราคา:");
+    if (!price) return;
 
-                {/* ส่วนแก้ไขสินค้าที่มีอยู่ */}
-                <div style={{ marginTop: '40px' }}>
-                    <h2>รายการสินค้าทั้งหมด (แก้ไขได้)</h2>
-                    <div style={{ display: 'flex', gap: '10px', fontWeight: 'bold', padding: '10px 0', borderBottom: '2px solid black' }}>
-                        <div style={{ width: '100px' }}>รูป</div>
-                        <div style={{ flex: 3 }}>ชื่อสินค้า</div>
-                        <div style={{ flex: 1 }}>ราคา</div>
-                        <div style={{ flex: 1 }}>คงเหลือ</div>
-                        <div style={{ flex: 2 }}>หมวดหมู่</div>
-                        <div style={{ width: '120px' }}>Actions</div>
-                    </div>
-                    {existingProducts.map(product => (
-                        <ProductEditRow 
-                            key={product.id}
-                            rowData={{ 
-                                ...product,
-                                relation: product.expand?.relation?.id || '' 
-                            }}
-                            onUpdate={handleUpdateExistingProduct}
-                            onDelete={() => handleDeleteExistingProduct(product.id, product.name)}
-                            onSave={handleSaveExistingProduct}
-                            categories={categories}
-                            isExisting={true}
-                        />
-                    ))}
-                </div>
-            </div>
-        </AdminAuthGuard>
-    );
+    try {
+      await pb.collection('products').create({ name, price: parseFloat(price) });
+      alert("เพิ่มสินค้าสำเร็จ!");
+      fetchProducts();
+    } catch (e) { alert("Error: " + e.message); }
+  };
+
+  const handleUpdate = async (id, oldName, oldPrice) => {
+    const name = prompt("แก้ไขชื่อสินค้า:", oldName);
+    if (!name) return;
+    const price = prompt("แก้ไขราคา:", oldPrice);
+    if (!price) return;
+
+    try {
+      await pb.collection('products').update(id, { name, price: parseFloat(price) });
+      alert("แก้ไขสำเร็จ!");
+      fetchProducts();
+    } catch (e) { alert("Error: " + e.message); }
+  };
+
+  const handleDelete = async (id) => {
+    if (confirm("ต้องการลบสินค้าจริงหรือไม่?")) {
+      try {
+        await pb.collection('products').delete(id);
+        fetchProducts();
+      } catch (e) { alert("Error: " + e.message); }
+    }
+  };
+
+  // --- 4. แสดงผล ---
+  if (!isAuthorized) return <div style={{padding:'50px', textAlign:'center'}}>กำลังตรวจสอบสิทธิ์...</div>;
+
+  return (
+    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', borderBottom:'1px solid #ccc', paddingBottom:'10px' }}>
+        <h1 style={{ margin: 0 }}>🛠️ จัดการสินค้า (Admin)</h1>
+        <Link href="/" style={{ color: 'blue', textDecoration: 'none', fontWeight:'bold' }}>← กลับหน้าร้านค้า</Link>
+      </div>
+
+      <button onClick={handleCreate} style={{ backgroundColor: '#10b981', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '5px', cursor: 'pointer', marginBottom: '20px' }}>
+        + เพิ่มสินค้าใหม่
+      </button>
+
+      {isLoading ? <p>กำลังโหลดข้อมูล...</p> : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
+          <thead>
+            <tr style={{ background: '#374151', color: 'white', textAlign: 'left' }}>
+              <th style={{ padding: '12px' }}>ชื่อสินค้า</th>
+              <th style={{ padding: '12px' }}>ราคา</th>
+              <th style={{ padding: '12px', textAlign: 'center' }}>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.length > 0 ? (
+                products.map((p) => (
+                <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '12px' }}>{p.name}</td>
+                    <td style={{ padding: '12px', color:'#d97706', fontWeight:'bold' }}>{p.price}</td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                    <button onClick={() => handleUpdate(p.id, p.name, p.price)} style={{ marginRight: '8px', padding:'5px 10px', background:'#f59e0b', color:'white', border:'none', borderRadius:'4px', cursor:'pointer' }}>แก้ไข</button>
+                    <button onClick={() => handleDelete(p.id)} style={{ padding:'5px 10px', background:'#ef4444', color:'white', border:'none', borderRadius:'4px', cursor:'pointer' }}>ลบ</button>
+                    </td>
+                </tr>
+                ))
+            ) : (
+                <tr><td colSpan="3" style={{padding:'20px', textAlign:'center'}}>ไม่มีสินค้า</td></tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
 }

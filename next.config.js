@@ -2,21 +2,22 @@
 const nextConfig = {
   images: {
     remotePatterns: [
+      // อันเก่า (สำหรับ Server จริง)
       {
         protocol: 'http',
-        hostname: '122.155.211.233', // IP ของ PocketBase
+        hostname: '122.155.211.233',
+        port: '8090',
+        pathname: '/api/files/**',
       },
+      // อันใหม่ (สำหรับรันที่เครื่องตัวเอง - localhost)
       {
         protocol: 'http',
-        hostname: '127.0.0.1', // <-- นี่คือบรรทัดที่ผมเพิ่มให้
-      },
-      {
-        protocol: 'https'         ,
-        hostname: 'placehold.co', // รูป Banner
+        hostname: '127.0.0.1',
+        port: '8090',
+        pathname: '/api/files/**',
       },
     ],
   },
 };
 
 module.exports = nextConfig;
-

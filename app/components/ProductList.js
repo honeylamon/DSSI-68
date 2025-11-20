@@ -1,33 +1,38 @@
 // app/components/ProductList.js
 'use client';
+
 import Image from 'next/image';
+// ✅ 1. Import useCart เข้ามาเพื่อเชื่อมต่อกับระบบตะกร้า
 import { useCart } from '@/app/contexts/CartContext'; 
-import styles from './ProductList.module.css';
+import styles from './ProductList.module.css'; // สมมติว่าคุณมีไฟล์ CSS นี้
 
 export default function ProductList({ productsWithImages }) { 
+    // ✅ 2. เรียกใช้ฟังก์ชัน addToCart จาก Context
     const { addToCart } = useCart();
 
     if (!productsWithImages || productsWithImages.length === 0) {
         return <p className={styles.emptyMessage}>ไม่พบสินค้า</p>;
     }
+    
+    // สร้างฟังก์ชัน handle เพื่อให้โค้ดอ่านง่าย
+    const handleAddToCart = (product) => {
+        // เรียกใช้ฟังก์ชันจาก Context พร้อมส่งข้อมูลสินค้าทั้งหมดไป
+        addToCart(product);
+        // แจ้งเตือนผู้ใช้ว่าเพิ่มสินค้าสำเร็จแล้ว
+        alert(`เพิ่ม "${product.name}" ลงในตะกร้าแล้ว!`);
+    };
 
     return (
         <div className={styles.productListContainer}> 
             {productsWithImages.map(({ product, imageUrl }) => {
-                
-                // ==================== ✅ FIX HERE / แก้ไขตรงนี้ ====================
-                // เพิ่มการตรวจสอบว่า product มีค่าจริงหรือไม่ ก่อนที่จะ render
-                if (!product) {
-                    return null; // ถ้าไม่มีข้อมูล product ให้ข้ามการแสดงผลรายการนี้ไปเลย
-                }
-                // =================================================================
+                // เพิ่มการป้องกัน Error หากข้อมูล product ไม่สมบูรณ์
+                if (!product) return null;
 
                 return (
                     <div key={product.id} className={styles.productItem}>
                         <div className={styles.imageContainer}>
                             <Image
                                 src={imageUrl}
-                                // ใช้ Optional Chaining (?.) และใส่ค่าสำรอง
                                 alt={product?.name || 'รูปภาพสินค้า'}
                                 width={100}
                                 height={100}
@@ -44,8 +49,9 @@ export default function ProductList({ productsWithImages }) {
                             <p className={styles.productPrice}>{product.price ?? 0} บาท</p>
                         </div>
                         <div className={styles.actionContainer}>
+                            {/* ✅ 3. แก้ไข onClick ให้เรียกใช้ฟังก์ชัน handleAddToCart ที่เราสร้างไว้ */}
                             <button 
-                                onClick={() => addToCart(product)} 
+                                onClick={() => handleAddToCart(product)} 
                                 className={styles.addButton}
                                 aria-label={`เพิ่ม ${product.name} ลงในตะกร้า`}
                             >+</button>

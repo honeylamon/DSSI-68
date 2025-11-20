@@ -1,59 +1,103 @@
-.header {
-  background-color: #ffffff;
-  color: #333;
-  padding: 0.8rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+/* app/components/Header.module.css */
+
+.mainHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background-color: #3e594b; /* สีเขียวเข้ม */
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    position: sticky; /* ทำให้ Header ค้างอยู่ด้านบนเมื่อเลื่อนจอ */
+    top: 0;
+    z-index: 1000;
 }
 
-.logo {
-  font-family: var(--font-pacifico); /* ต้องแน่ใจว่าได้ import font นี้ใน layout.js */
-  font-size: 2.2rem;
-  font-weight: 400;
-  color: #6a9c89;
-  cursor: pointer;
-  text-decoration: none;
+.logoContainer .logoLink {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
 }
 
-.searchBar {
-  display: flex;
-  align-items: center;
-  background-color: #f5f5f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 20px;
-  padding: 0.4rem 0.4rem 0.4rem 1rem;
-  width: 45%;
+.searchContainer {
+    position: relative;
+    flex-grow: 1; /* ทำให้ช่องค้นหาขยายเต็มพื้นที่ที่เหลือ */
+    margin: 0 24px;
+    max-width: 600px;
 }
 
-.searchBar input {
-  border: none;
-  outline: none;
-  background: transparent;
-  width: 100%;
-  font-family: var(--font-sarabun); /* ต้องแน่ใจว่าได้ import font นี้ใน layout.js */
-  font-size: 1rem;
+.searchInput {
+    width: 100%;
+    padding: 10px 40px 10px 15px; /* เพิ่ม padding ด้านขวาสำหรับไอคอน */
+    border-radius: 8px;
+    border: none;
+    font-size: 1rem;
+    outline: none;
 }
 
-.cameraButton {
-  background-color: #e0e0e0;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
-  cursor: pointer;
-  margin-left: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.searchIcon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #757575;
+    cursor: pointer;
 }
 
-.profileIcon {
-  font-size: 1.5rem;
-  cursor: pointer;
+.actionsContainer {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.cartLink {
+    color: white;
+    text-decoration: none;
+    font-size: 1rem;
+    white-space: nowrap; /* ป้องกันการตัดคำ */
+    transition: color 0.2s;
+}
+
+.cartLink:hover {
+    color: #e0e0e0;
+}
+
+.profileLink .profileIcon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: white;
+    color: #3e594b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    transition: transform 0.2s;
+}
+
+.profileLink:hover .profileIcon {
+    transform: scale(1.1);
+}
+
+.welcomeText {
+    font-size: 0.9rem;
+    white-space: nowrap; /* ป้องกันการตัดคำ */
+    color: #e0e0e0;
+}
+
+.logoutButton {
+    background-color: white;
+    color: #3e594b; /* สีเดียวกับพื้นหลัง Header */
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.logoutButton:hover {
+    background-color: #f0f0f0;
 }

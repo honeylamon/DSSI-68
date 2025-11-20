@@ -1,86 +1,89 @@
-'use client';
+// app/category/[slug]/page.js
 
-import { useState } from 'react';
-import { useCart } from '@/app/contexts/CartContext';
-import { useRouter } from 'next/navigation';
-import styles from './AddressPage.module.css';
+import Link from 'next/link';
+import PocketBase from 'pocketbase';
+import ProductList from '../../components/ProductList';
 
-export default function AddressPage() {
-  const { address, saveAddress } = useCart();
-  const router = useRouter();
+// ==================== ✅ FIX #1: บอก Next.js ว่าหน้านี้เป็น Dynamic ====================
+export const dynamic = 'force-dynamic';
+// =================================================================================
 
-  // ตั้งค่าเริ่มต้นจาก address ที่มีอยู่ (ถ้ามี)
-  const [name, setName] = useState(address?.name || '');
-  const [phone, setPhone] = useState(address?.phone || '');
-  const [fullAddress, setFullAddress] = useState(address?.fullAddress || '');
-  const [note, setNote] = useState(address?.note || '');
+const pb = new PocketBase('http://127.0.0.1:8090');
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const addressData = { name, phone, fullAddress, note };
-    
-    // 1. บันทึกที่อยู่ลง Context (ซึ่งจะไป save ลง LocalStorage)
-    saveAddress(addressData);
-    
-    // 2. แสดง Alert (ไม่จำเป็น)
-    alert('บันทึกที่อยู่เรียบร้อยแล้ว');
-    
-    // 3. กลับไปหน้าตะกร้าสินค้า
-    router.push('/cart');
-  };
+function getProductImageUrl(record, filename) {
+    if (!record || !filename) {
+        return '/placeholder.jpg';
+    }
+    return pb.files.getURL(record, filename, { 'thumb': '100x100' });
+}
 
-  return (
-    <div className={styles.container}>
-      <button onClick={() => router.back()} className={styles.backButton}>
-        &larr; กลับ
-      </button>
-      <h1>{address ? 'แก้ไขที่อยู่จัดส่ง' : 'เพิ่มที่อยู่ใหม่'}</h1>
-      
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <div className={styles.formGroup}>
-          <label htmlFor="name">ชื่อ - นามสกุล</label>
-          <input
-            type="text"
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label htmlFor="phone">เบอร์โทรศัพท์</label>
-          <input
-            type="tel"
-            id="phone"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label htmlFor="fullAddress">ที่อยู่ (บ้านเลขที่, ถนน, ตำบล, อำเภอ, จังหวัด, รหัสไปรษณีย์)</label>
-          <textarea
-            id="fullAddress"
-            rows="4"
-            value={fullAddress}
-            onChange={(e) => setFullAddress(e.target.value)}
-            required
-          />
-        </div>
-        <div className={styles.formGroup}>
-          <label htmlFor="note">หมายเหตุ (ถ้ามี)</label>
-          <input
-            type="text"
-            id="note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
+// ต้องเป็น async function เพื่อใช้ await
+export default async function CategoryProductsPage({ params, searchParams }) {
+    const categoryId = params.slug;
+
+    // ==================== ✅ FIX #2: ปรับปรุงวิธีดึงค่า page (เพิ่ม await) ====================
+    // ต้อง await searchParams ก่อนใช้งาน เนื่องจากเป็น Promise ใน Next.js 15
+    const resolvedSearchParams = await searchParams; 
+    const page = resolvedSearchParams['page'] ?? '1'; // ดึงค่า page จาก Object ที่ resolved แล้ว
+    const currentPage = parseInt(page, 10);
+    // ========================================================================================
+
+    const itemsPerPage = 10;
+    let categoryName = 'หมวดหมู่';
+
+    try {
+        const [categoryData, productsData] = await Promise.all([
+            pb.collection('categories').getOne(categoryId),
+            pb.collection('products').getList(currentPage, itemsPerPage, {
+                filter: `relation = "${categoryId}"`,
+                sort: '-created',
+            })
+        ]);
         
-        <button type="submit" className={styles.saveButton}>
-          บันทึกที่อยู่
-        </button>
-      </form>
-    </div>
-  );
+        // ประกาศตัวแปรโดยใช้ const/let แทนการประกาศซ้ำ
+        categoryName = categoryData.name;
+        const products = productsData.items;
+        const totalPages = productsData.totalPages;
+
+        if (products.length === 0) {
+            return (
+                <div style={{ padding: '2rem' }}>
+                    <h1>สินค้าในหมวดหมู่: {categoryName}</h1>
+                    <div style={{ padding: '4rem', textAlign: 'center', color: '#555' }}>
+                        ไม่พบสินค้าในหมวดหมู่นี้
+                    </div>
+                </div>
+            );
+        }
+
+        const productsWithImages = products.map(p => ({
+            product: p,
+            imageUrl: getProductImageUrl(p, p.picture)
+        }));
+
+        return (
+            <div style={{ padding: '2rem' }}>
+                <h1>สินค้าในหมวดหมู่: {categoryName}</h1>
+                <ProductList productsWithImages={productsWithImages} />
+
+                {/* Pagination */}
+                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                    {currentPage > 1 && <Link href={`/category/${categoryId}?page=${currentPage - 1}`}>Previous</Link>}
+                    <span>Page {currentPage} of {totalPages}</span>
+                    {currentPage < totalPages && <Link href={`/category/${categoryId}?page=${currentPage + 1}`}>Next</Link>}
+                </div>
+            </div>
+        );
+
+    } catch (e) {
+        console.error("Error fetching data:", e);
+        return (
+            <div style={{ padding: '2rem' }}>
+                 <h1>เกิดข้อผิดพลาด</h1>
+                 <div style={{ padding: '4rem', textAlign: 'center', color: 'red' }}>
+                    ไม่สามารถโหลดข้อมูลได้: {e.message}
+                 </div>
+            </div>
+        );
+    }
 }

@@ -73,7 +73,7 @@ export default function OrderHistoryPage() {
                             </div>
                             {/* แสดงจำนวนสินค้าที่สั่ง */}
                             <p style={{ margin: '5px 0' }}>
-                                จำนวนสินค้า: {order.items ? JSON.parse(order.items).length : 0} ชิ้น
+                                จำนวนสินค้า: {order.items ? order.items.length : 0} ชิ้น
                             </p>
                             <p style={{ margin: '5px 0' }}>ยอดรวม: <span style={{color: '#10b981', fontWeight: 'bold'}}>{order.total_price.toLocaleString()} บาท</span></p>
                             <p style={{ margin: '5px 0' }}>สถานะ: <span style={{

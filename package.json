@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.5",
     "clarifai-nodejs-grpc": "^11.9.10",
     "next": "15.5.2",
     "pocketbase": "^0.26.2",

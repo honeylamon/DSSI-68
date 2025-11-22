@@ -1,5 +1,6 @@
 'use client';
 
+import { Box } from '@mui/material';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,7 +12,6 @@ import {
     CardMedia,
     CardContent,
     Typography,
-    Box,
     CircularProgress,
     CardActionArea
 } from '@mui/material';

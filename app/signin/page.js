@@ -1,78 +1,114 @@
-// src/app/signin/page.js
 'use client';
 
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import pb from '../lib/pocketbase';
-import { useAuth } from '@/app/contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext'; // ต้องมีบรรทัดนี้
 
 export default function LoginPage() {
     const router = useRouter();
-    const { login } = useAuth();
+    
+    // 1. ดึง loginWithGoogle มาจาก AuthContext
+    const { login, loginWithGoogle } = useAuth(); 
+    
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
 
-    // ฟังก์ชันสำหรับล็อกอินด้วย Email/Password
+    // ฟังก์ชันล็อกอินปกติ
     const handleLogin = async (e) => {
         e.preventDefault();
+        setError('');
 
         try {
-            // 1. ส่งข้อมูลไปล็อกอิน
-            await login(email, password);
-            
-            // 2. ไม่ว่าจะเป็นใคร (Admin หรือ ลูกค้า) ให้กลับไปหน้าแรกเหมือนกันหมด
-            router.push('/');
-
-        } catch (error) {
-            alert(`Login failed: ${error.message}`);
+            const result = await login(email, password);
+            if (result.success) {
+                router.push('/');
+            } else {
+                setError('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+            }
+        } catch (err) {
+            setError(err.message);
         }
     };
 
-    // ฟังก์ชันสำหรับล็อกอินด้วย Facebook
-    const handleFacebookLogin = async () => {
+    // ✅ 2. นี่คือฟังก์ชันที่หายไปครับ! (ต้องเพิ่มตรงนี้)
+    const handleGoogleLogin = async () => {
         try {
-            await pb.collection('users').authWithOAuth2({ provider: 'facebook' });
-            router.push('/');
-        } catch (error) {
-            alert(`Facebook login failed: ${error.message}`);
+            const result = await loginWithGoogle(); // เรียกใช้ฟังก์ชันจาก Context
+            if (result.success) {
+                router.push('/'); // ล็อกอินสำเร็จ ไปหน้าแรก
+            } else {
+                setError('การเชื่อมต่อกับ Google ล้มเหลว');
+            }
+        } catch (err) {
+            setError(`Google login error: ${err.message}`);
         }
     };
 
     return (
-        <div style={{ maxWidth: '400px', margin: '50px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}>
-            <h2>เข้าสู่ระบบ</h2>
+        <div style={{ maxWidth: '400px', margin: '50px auto', padding: '30px', border: '1px solid #ddd', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ textAlign: 'center', marginBottom: '20px', color: '#333' }}>เข้าสู่ระบบ</h2>
+            
             <form onSubmit={handleLogin}>
                 <div style={{ marginBottom: '15px' }}>
-                    <label>Email</label>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#666' }}>Email</label>
                     <input 
                         type="email" 
                         required 
-                        style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                     />
                 </div>
-                <div style={{ marginBottom: '15px' }}>
-                    <label>Password</label>
+                <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', color: '#666' }}>Password</label>
                     <input 
                         type="password" 
                         required 
-                        style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                     />
                 </div>
-                <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#3B82F6', color: 'white', border: 'none', borderRadius: '5px' }}>
-                    Login
+                
+                {error && <p style={{ color: 'red', marginBottom: '15px', fontSize: '0.9em', textAlign: 'center' }}>{error}</p>}
+
+                <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#3e594b', color: 'white', border: 'none', borderRadius: '6px', fontSize: '16px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    เข้าสู่ระบบ
                 </button>
             </form>
-            <hr style={{ margin: '20px 0' }} />
-            <button onClick={handleFacebookLogin} style={{ width: '100%', padding: '10px', backgroundColor: '#1877F2', color: 'white', border: 'none', borderRadius: '5px', marginBottom: '15px' }}>
-                Login with Facebook
+            
+            <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: '#888' }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#ddd' }}></div>
+                <span style={{ padding: '0 10px', fontSize: '0.9rem' }}>หรือ</span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#ddd' }}></div>
+            </div>
+
+            {/* ปุ่ม Google เรียกใช้ handleGoogleLogin */}
+            <button 
+                onClick={handleGoogleLogin} 
+                style={{ 
+                    width: '100%', 
+                    padding: '12px', 
+                    backgroundColor: 'white', 
+                    color: '#333', 
+                    border: '1px solid #ccc', 
+                    borderRadius: '6px', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '10px',
+                    fontWeight: '500'
+                }}
+            >
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" width="20" height="20" />
+                เข้าสู่ระบบด้วย Google
             </button>
-            <p>
-                Don't have an account? <Link href="/signup" style={{ color: '#3B82F6' }}>Sign up</Link>
+
+            <p style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                ยังไม่มีบัญชี? <Link href="/signup" style={{ color: '#3e594b', fontWeight: 'bold' }}>สมัครสมาชิก</Link>
             </p>
         </div>
     );

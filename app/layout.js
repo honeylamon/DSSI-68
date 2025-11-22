@@ -1,11 +1,10 @@
-// app/layout.js
-import './globals.css'; 
+import './globals.css';
 import { Inter } from 'next/font/google';
+import Header from '@/app/components/Header';
+import Providers from '@/app/components/Providers';
 
-// Import Providers และ Header
-import { AuthProvider } from '@/app/contexts/AuthContext';
-import { CartProvider } from '@/app/contexts/CartContext';
-import Header from '@/app/components/Header'; // <-- Import Header ที่เราเพิ่งสร้าง
+// ✅ 1. Import ตัวนี้เข้ามา
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,21 +17,15 @@ export default function RootLayout({ children }) {
   return (
     <html lang="th">
       <body className={inter.className}>
-        <AuthProvider>
-          <CartProvider>
-            
-            {/* เรียกใช้ Component Header ที่นี่ */}
-            <Header />
-
-            {/* {children} คือเนื้อหาของแต่ละหน้า */}
-            <main>
-              {children}
-            </main>
-
-            {/* คุณสามารถเพิ่ม Footer ตรงนี้ได้ถ้าต้องการ */}
-
-          </CartProvider>
-        </AuthProvider>
+        {/* ✅ 2. เอา AppRouterCacheProvider มาหุ้มข้างใน body เป็นตัวแรกสุด */}
+        <AppRouterCacheProvider>
+            <Providers>
+              <Header />
+              <main>
+                {children}
+              </main>
+            </Providers>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

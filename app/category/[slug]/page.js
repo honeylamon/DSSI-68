@@ -4,9 +4,7 @@ import Link from 'next/link';
 import PocketBase from 'pocketbase';
 import ProductList from '../../components/ProductList';
 
-// ==================== ✅ FIX #1: บอก Next.js ว่าหน้านี้เป็น Dynamic ====================
 export const dynamic = 'force-dynamic';
-// =================================================================================
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
@@ -18,14 +16,16 @@ function getProductImageUrl(record, filename) {
 }
 
 export default async function CategoryProductsPage({ params, searchParams }) {
-    const categoryId = params.slug;
+    // ==================== ✅ FIX: ต้อง await ค่า params และ searchParams ก่อน ====================
+    const resolvedParams = await params;
+    const resolvedSearchParams = await searchParams;
 
-    // ==================== ✅ FIX #2: ปรับปรุงวิธีดึงค่า page ====================
-    const page = searchParams['page'] ?? '1';
+    const categoryId = resolvedParams.slug;
+    const page = resolvedSearchParams['page'] ?? '1';
     const currentPage = parseInt(page, 10);
-    // ======================================================================
+    // =========================================================================================
 
-    const itemsPerPage = 10;
+    const itemsPerPage = 5;
     let categoryName = 'หมวดหมู่';
 
     try {
@@ -37,7 +37,7 @@ export default async function CategoryProductsPage({ params, searchParams }) {
             })
         ]);
         
-        const categoryName = categoryData.name;
+        categoryName = categoryData.name;
         const products = productsData.items;
         const totalPages = productsData.totalPages;
 
@@ -77,7 +77,7 @@ export default async function CategoryProductsPage({ params, searchParams }) {
             <div style={{ padding: '2rem' }}>
                  <h1>เกิดข้อผิดพลาด</h1>
                  <div style={{ padding: '4rem', textAlign: 'center', color: 'red' }}>
-                    ไม่สามารถโหลดข้อมูลได้
+                    ไม่สามารถโหลดข้อมูลได้ หรือรหัสหมวดหมู่ไม่ถูกต้อง
                  </div>
             </div>
         );

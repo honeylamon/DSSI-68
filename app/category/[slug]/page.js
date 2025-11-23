@@ -72,7 +72,7 @@ export default async function CategoryProductsPage({ params, searchParams }) {
         );
 
     } catch (e) {
-        console.error("Error fetching data:", e);
+        console.error("Error fetching data:", e.message, e.status, e.data);
         return (
             <div style={{ padding: '2rem' }}>
                  <h1>เกิดข้อผิดพลาด</h1>

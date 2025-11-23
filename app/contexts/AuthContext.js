@@ -7,27 +7,39 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
+    const [isLoading, setIsLoading] = useState(true); 
 
-    // 1. ตรวจสอบสถานะล็อกอินเมื่อโหลดหน้าเว็บ
     useEffect(() => {
-        if (pb.authStore.isValid) {
-            setUser(pb.authStore.model);
-        }
+        // ใช้ pb.authStore.onChange เพื่อฟังการเปลี่ยนแปลงสถานะและตรวจสอบสถานะเริ่มต้น
+        const unsubscribe = pb.authStore.onChange((token, model) => {
+            if (model) {
+                setUser(model);
+                // Log: ยืนยันว่าล็อกอิน
+                console.log("AuthContext: User is logged in. ID:", model.id.substring(0, 8) + '...');
+            } else {
+                setUser(null);
+                // Log: ยืนยันว่าไม่ได้ล็อกอิน
+                console.log("AuthContext: User is logged out.");
+            }
+            // สำคัญ: ตั้งค่า isLoading เป็น false เสมอเมื่อตรวจสอบเสร็จสิ้นแล้ว
+            setIsLoading(false); 
+        }, true); 
+
+        return () => {
+            unsubscribe();
+        };
     }, []);
 
-    // ✅ ฟังก์ชันล็อกอินด้วย Google (ที่เพิ่มเข้ามาใหม่)
     const loginWithGoogle = async () => {
         try {
-            const authData = await pb.collection('users').authWithOAuth2({ provider: 'google' });
-            setUser(pb.authStore.model);
-            return { success: true, data: authData };
+            await pb.collection('users').authWithOAuth2({ provider: 'google' });
+            return { success: true };
         } catch (error) {
             console.error("Google login failed:", error);
             return { success: false, error: error.message };
         }
     };
 
-    // 2. ฟังก์ชันสำหรับสมัครสมาชิก
     const signup = async (email, password, passwordConfirm, name) => {
         try {
             const data = { email, password, passwordConfirm, name };
@@ -39,26 +51,22 @@ export function AuthProvider({ children }) {
         }
     };
 
-    // 3. ฟังก์ชันสำหรับล็อกอิน
     const login = async (email, password) => {
         try {
             await pb.collection('users').authWithPassword(email, password);
-            setUser(pb.authStore.model);
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message };
         }
     };
 
-    // 4. ฟังก์ชันสำหรับออกจากระบบ
     const logout = () => {
         pb.authStore.clear(); 
-        setUser(null);        
     };
 
-    // ✅ ส่ง loginWithGoogle ออกไปให้หน้าอื่นใช้ด้วย
     const value = {
         user,
+        isLoading, 
         signup,
         login,
         logout,
@@ -72,6 +80,6 @@ export function AuthProvider({ children }) {
     );
 }
 
-export function useAuth() {
+export const useAuth = () => {
     return useContext(AuthContext);
-}
+};

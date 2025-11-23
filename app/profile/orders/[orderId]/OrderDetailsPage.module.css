@@ -1,86 +1,114 @@
-/* src/app/profile/orders/[orderId]/OrderDetailsPage.module.css */
+/* app/profile/orders/[orderId]/OrderDetailsPage.module.css */
 
 .container {
     max-width: 900px;
     margin: 40px auto;
-    padding: 20px;
+    padding: 30px;
     background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    font-family: Arial, sans-serif;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    font-family: 'Kanit', sans-serif;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
+/* --- Header Section --- */
 .header {
     display: flex;
     align-items: center;
-    border-bottom: 2px solid #e0e0e0;
+    border-bottom: 2px solid #F3F3F3;
     padding-bottom: 15px;
-    margin-bottom: 25px;
-}
-
-.backButton {
-    background: none;
-    border: 1px solid #ccc;
-    color: #555;
-    padding: 8px 15px;
-    margin-right: 15px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 1rem;
-    font-weight: bold;
-    transition: all 0.2s;
-}
-
-.backButton:hover {
-    background-color: #f0f0f0;
-    border-color: #aaa;
-}
-
-.pageTitle {
-    font-size: 1.8rem;
-    color: #333;
-    margin: 0;
-}
-
-/* --- Address & Summary Section --- */
-
-.addressSection, .statusSection {
-    background-color: #f7f7f7;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    border-left: 5px solid #3498db;
-}
-
-.sectionTitle {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #2c3e50;
-    margin-top: 0;
     margin-bottom: 10px;
 }
 
+.backButton {
+    background: #EFEFEF;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin-right: 20px;
+    color: #333;
+    transition: background 0.2s;
+}
+
+.backButton:hover {
+    background: #e0e0e0;
+}
+
+.pageTitle {
+    color: #1A4D2E; /* Dark Green */
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+/* --- Section Titles --- */
+.sectionTitle {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #1A4D2E;
+    border-left: 4px solid #4FC3F7; /* Sky Blue */
+    padding-left: 10px;
+    margin-bottom: 15px;
+}
+
+/* --- Address Section --- */
+.addressSection {
+    padding: 15px;
+    background-color: #F8FDFF; /* Light Blue BG */
+    border: 1px solid #DDF1FF;
+    border-radius: 10px;
+}
+
 .addressDetail {
-    line-height: 1.6;
+    margin: 5px 0 0 0;
     color: #555;
+    line-height: 1.6;
+}
+
+/* --- Order Summary (Items & Status) --- */
+.orderSummary {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
 }
 
 /* --- Item List --- */
+.itemContainer {
+    border: 1px solid #E0E0E0;
+    border-radius: 10px;
+    overflow: hidden;
+}
 
 .itemHeader {
     display: flex;
     justify-content: space-between;
-    font-weight: bold;
-    padding: 10px 0;
-    border-bottom: 1px solid #ddd;
-    color: #777;
+    padding: 10px 20px;
+    background-color: #F8F8F8;
+    font-weight: 600;
+    color: #444;
+}
+
+.itemHeaderName {
+    flex-grow: 1;
+    text-align: left;
+}
+.itemHeaderQty {
+    width: 80px;
+    text-align: right;
 }
 
 .orderItem {
     display: flex;
     align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #eee;
+    padding: 15px 20px;
+    border-bottom: 1px solid #F0F0F0;
+}
+
+.orderItem:last-child {
+    border-bottom: none;
 }
 
 .itemInfo {
@@ -90,41 +118,49 @@
 
 .itemName {
     margin: 0;
-    font-weight: bold;
-    font-size: 1.05rem;
+    font-weight: 600;
+    color: #333;
 }
 
 .itemDescription {
-    margin: 5px 0 0 0;
-    color: #888;
-    font-size: 0.9rem;
+    margin: 3px 0 0 0;
+    font-size: 0.85rem;
+    color: #777;
 }
 
 .itemQuantity {
-    font-weight: bold;
-    color: #e67e22;
     width: 80px;
     text-align: right;
+    font-weight: 600;
+    color: #4FC3F7;
 }
 
 /* --- Status & Tracking --- */
+.statusSection {
+    padding: 15px;
+    border: 1px solid #FFEBE5;
+    background-color: #FFF9F7;
+    border-radius: 10px;
+}
 
-.trackingInfo p {
-    margin: 5px 0;
-    color: #555;
+.trackingInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .trackingNumber {
     font-weight: bold;
-    color: #2980b9;
+    color: #f59e0b; /* Orange */
     margin-right: 10px;
 }
 
 .trackingButton {
-    background-color: #bdc3c7;
+    background-color: #f59e0b; /* Orange */
+    color: white;
     border: none;
     padding: 5px 10px;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-size: 0.85rem;
     margin-left: 5px;
@@ -132,55 +168,72 @@
 }
 
 .trackingButton:hover {
-    background-color: #95a5a6;
+    background-color: #e08e0b;
 }
 
 .statusBox {
     display: flex;
     align-items: center;
-    padding: 10px;
-    background-color: #e8f5e9; /* Light green */
-    border: 1px solid #c8e6c9;
-    border-radius: 6px;
-    margin-top: 10px;
+    background-color: #E6F7FF; /* Light Sky Blue */
+    padding: 10px 15px;
+    border-radius: 8px;
 }
 
 .statusIconContainer {
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
+    background-color: #4FC3F7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-right: 15px;
 }
 
-/* --- Footer Summary --- */
+.statusIcon {
+    width: 24px;
+    height: 24px;
+    /* Assume you have /public/images/shipping_box.png */
+}
 
+.orderStatusText {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1A4D2E;
+}
+
+
+/* --- Footer Summary --- */
 .footerSummary {
-    margin-top: 30px;
-    border-top: 2px solid #333;
-    padding-top: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    border-top: 2px solid #F3F3F3;
+    padding-top: 20px;
+    margin-top: 10px;
 }
 
 .totalAmountBox {
-    text-align: right;
+    display: flex;
+    flex-direction: column;
 }
 
 .totalLabel {
-    font-size: 1.1rem;
-    color: #777;
     margin: 0;
+    font-size: 1rem;
+    color: #666;
 }
 
 .totalPrice {
-    font-size: 2rem;
-    font-weight: bold;
-    color: #27ae60; /* Dark green */
     margin: 5px 0 0 0;
+    font-size: 2rem;
+    font-weight: 800;
+    color: #ef4444; /* Red for emphasis */
 }
 
 .confirmReceivedButton {
-    background-color: #2ecc71;
+    background-color: #1A4D2E; /* Dark Green */
     color: white;
     border: none;
     padding: 15px 30px;
@@ -192,5 +245,21 @@
 }
 
 .confirmReceivedButton:hover {
-    background-color: #27ae60;
+    background-color: #2b704c;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+        margin: 20px;
+    }
+    .footerSummary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    .confirmReceivedButton {
+        width: 100%;
+    }
 }

@@ -1,147 +1,112 @@
 // app/profile/orders/[orderId]/OrderDetailsClient.js
 'use client';
 
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
+import pb from '@/app/lib/pocketbase';
+import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import styles from './OrderDetailsPage.module.css'; // ใช้ CSS Module เดียวกัน
 
-// Helper function สำหรับแสดงสถานะ
-const getStatusText = (status) => {
-    switch (status) {
-        case 'New': return 'คำสั่งซื้อใหม่';
-        case 'Processing': return 'กำลังดำเนินการ';
-        case 'Shipping': return 'จัดเตรียมสินค้า';
-        case 'Shipped': return 'จัดส่งแล้ว';
-        case 'Delivered': return 'จัดส่งสำเร็จ';
-        case 'Cancelled': return 'ยกเลิกแล้ว';
-        default: return 'ไม่ทราบสถานะ';
-    }
-};
-
-export default function OrderDetailsClient({
-    orderId,
-    orderItems,
-    orderStatus,
-    address,
-    totalPrice,
-    trackingNumber,
-    shippingMethod
-}) {
+export default function OrderDetailsClient({ orderId }) {
+    const { user } = useAuth();
     const router = useRouter();
-    
-    // --- Logic ปุ่ม ---
-    const handleCopy = () => {
-        if (trackingNumber && navigator.clipboard) {
-            navigator.clipboard.writeText(trackingNumber);
-            alert('คัดลอกเลขพัสดุแล้ว');
-        } else if (trackingNumber) {
-            alert('เลขพัสดุ: ' + trackingNumber);
-        }
-    };
-    
-    const handleTrack = () => {
-        if (trackingNumber) {
-            // ตัวอย่าง URL สำหรับค้นหาพัสดุ (สามารถเปลี่ยนเป็นบริษัทขนส่งอื่นได้)
-            const trackingUrl = `https://track.thailandpost.co.th/?trackNumber=${trackingNumber}`;
-            window.open(trackingUrl, '_blank');
-        }
+    const [order, setOrder] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // จำลองการอัปเดตสถานะการชำระเงิน
+    const handlePayment = () => {
+        // **นี่คือส่วนที่คุณต้องเชื่อมต่อกับ Payment Gateway จริง**
+        
+        alert("จำลอง: กำลังเข้าสู่หน้าชำระเงิน...");
+        // ในระบบจริง: ถ้าชำระสำเร็จ คุณต้องเรียก API เพื่ออัปเดตสถานะใน PocketBase
+        // เช่น: pb.collection('orders').update(orderId, { status: 'paid' });
+        
+        // จำลองการเปลี่ยนสถานะเป็น 'processing' หลังชำระเงินสำเร็จ
+        setOrder(prev => ({ ...prev, status: 'processing' })); 
     };
 
+    useEffect(() => {
+        if (!user) {
+            router.push('/signin');
+            return;
+        }
+
+        const fetchOrder = async () => {
+            try {
+                // ดึง Order เฉพาะ ID นั้น
+                const record = await pb.collection('orders').getOne(orderId);
+                setOrder(record);
+            } catch (error) {
+                console.error("Failed to fetch order details:", error);
+                // ถ้าดึงข้อมูลไม่ได้ (เช่น สิทธิ์ไม่พอ)
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOrder();
+    }, [orderId, user, router]);
+
+    if (isLoading) {
+        return <div style={{padding:'50px', textAlign:'center'}}>กำลังโหลดรายละเอียดคำสั่งซื้อ...</div>;
+    }
+
+    if (!order) {
+        return <div style={{padding:'50px', textAlign:'center'}}>ไม่พบคำสั่งซื้อนี้ หรือคุณไม่มีสิทธิ์เข้าถึง</div>;
+    }
+
+    // --- ส่วนแสดงผลรายละเอียด Order ---
     return (
-        <div className={styles.container}>
-            {/* Header: ปุ่มย้อนกลับและชื่อหน้า */}
-            <div className={styles.header}>
-                <button onClick={() => router.back()} className={styles.backButton}>
-                    &larr;
-                </button>
-                <h1 className={styles.pageTitle}>รายละเอียดคำสั่งซื้อ</h1>
-            </div>
-
-            {/* ส่วนที่อยู่จัดส่ง */}
-            {shippingMethod === 'delivery' && address && (
-                <div className={styles.addressSection}>
-                    <p className={styles.sectionTitle}>ที่อยู่จัดส่ง</p>
-                    <p className={styles.addressDetail}>
-                        {address.fullAddress}
-                    </p>
-                </div>
-            )}
+        <div style={{ maxWidth: '800px', margin: '0 auto', padding: '20px', fontFamily: 'sans-serif' }}>
+            <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>รายละเอียดคำสั่งซื้อ</h1>
+            <p><strong>Order ID:</strong> {orderId}</p>
+            <p><strong>วันที่สั่ง:</strong> {new Date(order.created).toLocaleDateString('th-TH')}</p>
             
-            <div className={styles.orderSummary}>
-                
-                {/* รายละเอียดสินค้า */}
-                <div className={styles.itemContainer}>
-                    {/* หัวตารางสินค้า */}
-                    <div className={styles.itemHeader}>
-                        <p className={styles.itemHeaderName}>ชื่อ</p>
-                        <p className={styles.itemHeaderQty}>จำนวน</p>
-                    </div>
-
-                    {orderItems.map((item) => (
-                        <div key={item.name} className={styles.orderItem}>
-                            {/* รูปภาพ */}
-                            <Image 
-                                src={item.imageUrl} 
-                                alt={item.name} 
-                                width={80} 
-                                height={80} 
-                                style={{ objectFit: 'cover', borderRadius: '4px' }}
-                            />
-                            
-                            <div className={styles.itemInfo}>
-                                <p className={styles.itemName}>{item.name}</p>
-                                <p className={styles.itemDescription}>
-                                    ราคาต่อหน่วย: {item.price || 0} บาท
-                                </p>
-                            </div>
-                            
-                            <p className={styles.itemQuantity}>x {item.quantity}</p>
-                        </div>
-                    ))}
-                </div>
-
-                {/* สถานะคำสั่งซื้อ */}
-                <div className={styles.statusSection}>
-                    <p className={styles.sectionTitle}>สถานะ</p>
-                    <div className={styles.trackingInfo}>
-                        <p>
-                            เลขพัสดุ: <span className={styles.trackingNumber}>{trackingNumber || 'ไม่มีเลขพัสดุ'}</span>
-                            {trackingNumber && (
-                                <>
-                                    <button className={styles.trackingButton} onClick={handleCopy}>
-                                        คัดลอก
-                                    </button>
-                                    <button className={styles.trackingButton} onClick={handleTrack}>
-                                        ค้นหา
-                                    </button>
-                                </>
-                            )}
-                        </p>
-                        <div className={styles.statusBox}>
-                            {/* Icon จัดส่ง */}
-                            <div className={styles.statusIconContainer}>
-                                {/* ต้องมีไฟล์ /public/images/shipping_box.png */}
-                                <img src="/images/shipping_box.png" alt="สถานะ" className={styles.statusIcon} />
-                            </div>
-                            
-                            <p className={styles.orderStatusText}>{getStatusText(orderStatus)}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* สรุปราคารวมด้านล่าง (Footer) */}
-            <div className={styles.footerSummary}>
-                <div className={styles.totalAmountBox}>
-                    <p className={styles.totalLabel}>ยอดรวมการสั่งซื้อ</p>
-                    <p className={styles.totalPrice}>
-                        {totalPrice} ฿
-                    </p>
-                </div>
-                <button className={styles.confirmReceivedButton}>
-                    ชำระแล้ว
+            <h2 style={{marginTop: '30px', borderBottom: '1px solid #ddd', paddingBottom: '5px'}}>สรุปยอดเงินและสถานะ</h2>
+            <p><strong>ยอดรวมทั้งหมด:</strong> <span style={{color: '#10b981', fontWeight: 'bold', fontSize: '1.2rem'}}>{order.total_price.toLocaleString()} บาท</span></p>
+            <p><strong>สถานะปัจจุบัน:</strong> 
+                <span style={{color: order.status === 'pending' ? '#f97316' : '#059669', fontWeight: 'bold'}}>
+                    {order.status === 'pending' ? 'รอชำระเงิน' : 'ชำระเงินแล้ว / อยู่ในระหว่างการจัดส่ง'}
+                </span>
+            </p>
+            
+            {/* ✅ ส่วนสำคัญ: ปุ่มชำระเงิน (แสดงเฉพาะเมื่อสถานะเป็น pending) */}
+            {order.status === 'pending' && (
+                <button 
+                    onClick={handlePayment} 
+                    style={{ 
+                        backgroundColor: '#ff9800', 
+                        color: 'white', 
+                        padding: '12px 25px', 
+                        border: 'none', 
+                        borderRadius: '5px', 
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 'bold',
+                        marginTop: '20px',
+                        transition: 'background-color 0.2s'
+                    }}
+                >
+                    ชำระเงินตอนนี้ ({order.total_price.toLocaleString()} บาท)
                 </button>
-            </div>
+            )}
+
+            <h2 style={{marginTop: '30px', borderBottom: '1px solid #ddd', paddingBottom: '5px'}}>รายการสินค้าที่สั่ง</h2>
+            {order.items && order.items.map((item, index) => (
+                <div key={index} style={{ border: '1px solid #f0f0f0', padding: '10px', marginBottom: '10px', borderRadius: '4px', backgroundColor: '#f9f9f9' }}>
+                    <p style={{ margin: '0 0 5px 0' }}><strong>สินค้า:</strong> {item.name}</p>
+                    <p style={{ margin: '0 0 5px 0' }}><strong>จำนวน:</strong> {item.quantity}</p>
+                    <p style={{ margin: 0 }}><strong>ราคารวม (เฉพาะรายการ):</strong> {(item.price * item.quantity).toLocaleString()} บาท</p>
+                </div>
+            ))}
+            
+            <h2 style={{marginTop: '30px', borderBottom: '1px solid #ddd', paddingBottom: '5px'}}>ที่อยู่สำหรับจัดส่ง</h2>
+            <p><strong>ชื่อผู้รับ:</strong> {order.name || 'N/A'}</p>
+            <p><strong>เบอร์โทร:</strong> {order.phone || 'N/A'}</p>
+            <p style={{whiteSpace: 'pre-wrap'}}><strong>ที่อยู่:</strong> {order.address || 'N/A'}</p>
+            
+            <Link href="/profile/orders" style={{ display: 'block', marginTop: '40px', color: '#6b7280', textDecoration: 'underline' }}>
+                ← กลับไปดูประวัติคำสั่งซื้อ
+            </Link>
         </div>
     );
 }

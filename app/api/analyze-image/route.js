@@ -1,11 +1,7 @@
 import { NextResponse } from 'next/server';
 
-const CLARIFAI_PAT = 'f7c7235762bf45e9aff6e48a10053a36';
-const CLARIFAI_USER_ID = '8crja98urwmf';
-const CLARIFAI_APP_ID = 'baanjoy-new-search';
-
-// ✅ แก้ไขตรงนี้: ใช้รหัส ID ของโมเดล Food (แทนชื่อเล่น)
-const MODEL_ID = 'bd367be194cf45149e75f01d59f77ba7'; 
+// 🔴 1. ใส่ Key ใหม่ของคุณตรงนี้ (ห้ามใช้ตัวเดิมที่ขึ้นต้นด้วย f7c...)
+const CLARIFAI_PAT = '045f82dd01134d2fa616eafeac6ccad8'; 
 
 export async function POST(request) {
     try {
@@ -13,13 +9,18 @@ export async function POST(request) {
         const { imageBase64 } = body;
 
         if (!imageBase64) {
-            return NextResponse.json({ error: 'ไม่พบข้อมูลรูปภาพ' }, { status: 400 });
+            return NextResponse.json({ error: 'No image data' }, { status: 400 });
         }
 
+        // ✅ ใช้ URL แบบมาตรฐานที่สุด (ชี้ไปที่โมเดล Food Recognition V1.0)
+        const MODEL_URL = "https://api.clarifai.com/v2/models/food-item-recognition/versions/1d5fd481e0cf4826aa72ec3ff049e044/outputs";
+
         const raw = JSON.stringify({
+            // ✅ จุดสำคัญ: ระบุว่า "ฉันกำลังจะใช้โมเดลของ user: clarifai ใน app: main"
+            // (ต้องใส่ตรงนี้ เพื่อแก้ Error 11102 / Model not found)
             "user_app_id": {
-                "user_id": CLARIFAI_USER_ID,
-                "app_id": CLARIFAI_APP_ID
+                "user_id": "clarifai",
+                "app_id": "main"
             },
             "inputs": [
                 {
@@ -32,8 +33,9 @@ export async function POST(request) {
             ]
         });
 
-        // ส่งไปถาม AI
-        const response = await fetch("https://api.clarifai.com/v2/models/" + MODEL_ID + "/outputs", {
+        console.log("🚀 กำลังส่งรูปไปถาม AI...");
+
+        const response = await fetch(MODEL_URL, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
@@ -45,15 +47,22 @@ export async function POST(request) {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("Clarifai Error:", errorText);
-            throw new Error(`Clarifai Error (${response.status}): ${errorText}`);
+            console.error("❌ Clarifai API Error:", errorText);
+            throw new Error(`AI ตอบกลับมาว่า Error (${response.status}): ${errorText}`);
         }
 
         const result = await response.json();
+        
+        // เช็คว่า AI ตอบอะไรกลับมาบ้าง (ดูใน Terminal)
+        if (result.outputs?.[0]?.data?.concepts) {
+            const topAnswer = result.outputs[0].data.concepts[0].name;
+            console.log("✅ AI ทายว่า:", topAnswer);
+        }
+
         return NextResponse.json(result);
 
     } catch (error) {
-        console.error("Server Error:", error);
+        console.error("❌ Server Error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

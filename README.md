@@ -12,7 +12,7 @@
 เปิด Terminal และรันคำสั่งตามลำดับ:
 
 | # | คำสั่ง |
-| :--- | :--- | :--- |
+
 | **2.1** | `git clone <YOUR_REPO_URL> <FOLDER_NAME>` | โคลนโปรเจกต์ลงในโฟลเดอร์ที่กำหนด (เช่น `DSSI-68-project`) |
 | **2.2** | `cd <FOLDER_NAME>` | ย้ายเข้าสู่โฟลเดอร์โปรเจกต์ |
 | **2.3** | `npm install` ติดตั้ง Dependencies ทั้งหมด 
@@ -22,7 +22,7 @@
 เมื่อติดตั้ง Dependencies เสร็จแล้ว ให้รัน Next.js Server:
 
 | # | คำสั่ง | คำอธิบาย |
-| :--- | :--- | :--- |
+
 | **3.1** | `npm run dev` | รัน Next.js Development Server |
 
 ---

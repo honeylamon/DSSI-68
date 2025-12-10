@@ -95,6 +95,7 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
         stock: '0', 
         category: '', 
         picture: null,
+        promoType: 'none', // ✅ NEW: เพิ่ม promoType เข้ามาใน State
     });
     const [isSaving, setIsSaving] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
@@ -102,14 +103,13 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
     const [categories, setCategories] = useState([]);
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
-    // --- ฟังก์ชันดึงหมวดหมู่ ---
+    // --- ฟังก์ชันดึงหมวดหมู่ (เหมือนเดิม) ---
     const fetchCategories = async () => {
         setIsLoadingCategories(true);
         try {
             const catRecords = await pb.collection('categories').getFullList({ requestKey: null });
             setCategories(catRecords);
             
-            // ตั้งค่าหมวดหมู่แรกเป็นค่าเริ่มต้น ถ้ามี
             if (catRecords.length > 0) {
                 setFormData(p => ({ ...p, category: catRecords[0].id }));
             }
@@ -121,7 +121,6 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
         }
     };
     
-    // ดึงหมวดหมู่เมื่อ component ถูก mount
     useEffect(() => {
         fetchCategories();
     }, []);
@@ -154,6 +153,9 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
             dataToCreate.append('price', parseFloat(formData.price));
             dataToCreate.append('stock', parseInt(formData.stock)); 
             dataToCreate.append('relation', formData.category); 
+            
+            // ✅ NEW: ส่งค่า promoType ไปบันทึก
+            dataToCreate.append('promoType', formData.promoType); 
 
             if (formData.picture) {
                 dataToCreate.append('picture', formData.picture);
@@ -197,7 +199,7 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
                         <input type="number" name="stock" value={formData.stock} onChange={handleChange} required min="0" step="1" style={inputStyle}/>
                     </div>
 
-                    {/* ✅ ส่วนการแสดงหมวดหมู่ */}
+                    {/* หมวดหมู่ */}
                     <div>
                         <label style={labelStyle}>หมวดหมู่</label>
                         {isLoadingCategories ? (
@@ -213,7 +215,7 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
                                 <option value="">--- เลือกหมวดหมู่ ---</option>
                                 {categories.map((cat) => (
                                     <option key={cat.id} value={cat.id}>
-                                        {/* 🔴 แก้ไขตรงนี้: ใช้ .name แทน [t name] เพื่อดึงชื่อหมวดหมู่ที่ถูกต้อง */}
+                                        {/* แก้ไขตามที่คุยกัน: ใช้ .name */}
                                         {cat.name || cat.id} 
                                     </option>
                                 ))}
@@ -223,6 +225,22 @@ export default function CreateProductForm({ onClose, onProductCreated }) {
                         )}
                     </div>
                     
+                    {/* ✅ NEW: ช่องประเภทโปรโมชั่น */}
+                    <div>
+                        <label style={labelStyle}>ประเภทโปรโมชั่น</label>
+                        <select 
+                            name="promoType" 
+                            value={formData.promoType} 
+                            onChange={handleChange} 
+                            style={inputStyle}
+                        >
+                            <option value="none">ไม่มีโปรโมชั่น</option>
+                            <option value="discount">ลดราคาพิเศษ</option>
+                            <option value="bogo">ซื้อ 1 แถม 1</option>
+                            <option value="featured">สินค้าแนะนำ</option>
+                        </select>
+                    </div>
+
                     {/* รูปภาพ */}
                     <div>
                         <label style={labelStyle}>รูปภาพสินค้า</label>

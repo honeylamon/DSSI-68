@@ -40,6 +40,17 @@ const pageStyles = {
     saveButtonStyle: { padding: '10px 15px', border: 'none', borderRadius: '8px', color: colors.white, cursor: 'pointer', fontWeight: 'bold' }
 };
 
+// ฟังก์ชันแปลงค่า promoType ให้เป็นข้อความที่อ่านง่าย
+const displayPromoType = (type) => {
+    switch(type) {
+        case 'discount': return <span style={{color: colors.red, fontWeight: 'bold'}}>ลดราคาพิเศษ</span>;
+        case 'bogo': return <span style={{color: colors.orange, fontWeight: 'bold'}}>ซื้อ 1 แถม 1</span>;
+        case 'featured': return <span style={{color: colors.darkGreen, fontWeight: 'bold'}}>สินค้าแนะนำ</span>;
+        case 'none':
+        default: return 'ไม่มี';
+    }
+}
+
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([]);
@@ -56,6 +67,7 @@ export default function AdminProductsPage() {
     stock: '', 
     category: '', 
     picture: null,
+    promoType: 'none', // ✅ NEW: เพิ่ม Field ใหม่
   });
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateError, setUpdateError] = useState('');
@@ -107,6 +119,7 @@ export default function AdminProductsPage() {
           stock: product.stock?.toString() ?? '0', 
           category: categoryId,
           picture: null,
+          promoType: product.promoType ?? 'none', // ✅ NEW: ดึงค่า promoType
       });
       setShowUpdateForm(true);
       setUpdateError('');
@@ -124,6 +137,7 @@ export default function AdminProductsPage() {
       dataToUpdate.append('price', parseFloat(updateFormData.price));
       dataToUpdate.append('stock', parseInt(updateFormData.stock));
       dataToUpdate.append('relation', updateFormData.category);
+      dataToUpdate.append('promoType', updateFormData.promoType); // ✅ NEW: ส่งค่า promoType
 
       if (updateFormData.picture) {
         dataToUpdate.append('picture', updateFormData.picture);
@@ -170,7 +184,6 @@ export default function AdminProductsPage() {
         <div style={pageStyles.productManager}>
           <div style={pageStyles.managerHeader}>
             <h2>รายการสินค้าทั้งหมด</h2>
-            {/* ✅ ส่ง categories ให้ CreateProductForm เพื่อแก้ปัญหาการดึงหมวดหมู่ */}
             <button onClick={handleOpenCreate} style={pageStyles.addButton}>+ เพิ่มสินค้าใหม่</button>
           </div>
 
@@ -182,6 +195,7 @@ export default function AdminProductsPage() {
                   <th style={pageStyles.th}>รูปภาพ</th>
                   <th style={pageStyles.th}>ชื่อสินค้า</th>
                   <th style={pageStyles.th}>หมวดหมู่</th> 
+                  <th style={pageStyles.th}>โปรโมชั่น</th> {/* ✅ NEW: เพิ่มคอลัมน์ */}
                   <th style={pageStyles.th}>ราคา (บาท)</th>
                   <th style={pageStyles.th}>สต็อก</th>
                   <th style={pageStyles.th}>วันที่สร้าง</th>
@@ -201,9 +215,12 @@ export default function AdminProductsPage() {
                       </td>
                       <td style={pageStyles.td}>{product.name}</td>
                       
-                      {/* 🔴 แก้ไขจุดที่ 1: เปลี่ยนจาก 't name' เป็น 'name' (สำหรับตารางแสดงผล) */}
+                      {/* แก้ไข: ใช้ .name */}
                       <td style={pageStyles.td}>{product.expand?.relation?.name || 'ไม่มี'}</td> 
                       
+                      {/* ✅ NEW: แสดงผล promoType */}
+                      <td style={pageStyles.td}>{displayPromoType(product.promoType)}</td>
+
                       <td style={pageStyles.td}>{product.price?.toFixed(2) ?? '0.00'}</td>
                       <td style={pageStyles.td}>{product.stock ?? 0}</td>
                       <td style={pageStyles.td}>{new Date(product.created).toLocaleDateString('th-TH')}</td>
@@ -224,7 +241,8 @@ export default function AdminProductsPage() {
                     </tr>
                 )) : (
                     <tr>
-                      <td colSpan="7" style={{ textAlign: 'center', ...pageStyles.td }}>ยังไม่มีสินค้าในระบบ</td>
+                      {/* ปรับ colSpan เป็น 8 ตามจำนวนคอลัมน์ใหม่ */}
+                      <td colSpan="8" style={{ textAlign: 'center', ...pageStyles.td }}>ยังไม่มีสินค้าในระบบ</td>
                     </tr>
                 )}</tbody>
             </table>
@@ -232,7 +250,7 @@ export default function AdminProductsPage() {
         </div>
       </main>
 
-      {/* --- 4. Create Product Modal --- */}
+      {/* --- 4. Create Product Modal (ใช้ CreateProductForm ที่แก้ไขแล้ว) --- */}
       {showCreateForm && (
           <CreateProductForm 
             onClose={() => setShowCreateForm(false)} 
@@ -277,7 +295,7 @@ export default function AdminProductsPage() {
                                   required 
                                   style={pageStyles.inputStyle}
                               >
-                                  {/* 🔴 แก้ไขจุดที่ 2: เปลี่ยนจาก 't name' เป็น 'name' (สำหรับ Modal แก้ไข) */}
+                                  {/* ✅ FIX: ลบวงเล็บ `{` และ `return` ถ้ามี, ให้เหลือแค่ `()` หรือไม่มีเลย */}
                                   {categories.map((cat) => (
                                       <option key={cat.id} value={cat.id}>{cat.name || cat.id}</option>
                                   ))}
@@ -287,6 +305,22 @@ export default function AdminProductsPage() {
                           )}
                       </div>
                       
+                      {/* ✅ NEW: ช่องประเภทโปรโมชั่น (Update Modal) */}
+                      <div>
+                          <label style={pageStyles.labelStyle}>ประเภทโปรโมชั่น</label>
+                          <select 
+                              name="promoType" 
+                              value={updateFormData.promoType} 
+                              onChange={(e) => setUpdateFormData(p => ({...p, promoType: e.target.value}))} 
+                              style={pageStyles.inputStyle}
+                          >
+                              <option value="none">ไม่มีโปรโมชั่น</option>
+                              <option value="discount">ลดราคาพิเศษ</option>
+                              <option value="bogo">ซื้อ 1 แถม 1</option>
+                              <option value="featured">สินค้าแนะนำ</option>
+                          </select>
+                      </div>
+
                       {/* รูปภาพ */}
                       <div>
                           <label style={pageStyles.labelStyle}>รูปภาพสินค้า</label>

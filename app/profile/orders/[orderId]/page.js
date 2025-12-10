@@ -11,12 +11,13 @@ import { useAuth } from '@/app/contexts/AuthContext';
 const colors = {
     primary: '#1A4D2E', // Dark Green
     secondary: '#4FC3F7', // Sky Blue
-    // background: '#FFF0F3', // Light Pink (ไม่ใช้ใน Component หลัก)
     success: '#10b981', // Green
     warning: '#f97316', // Orange
     danger: '#ef4444', // Red
     gray: '#6b7280',
-    white: '#FFFFFF'
+    white: '#FFFFFF',
+    border: '#e5e7eb',
+    background: '#f9fafb'
 };
 
 // ฟังก์ชันสำหรับกำหนดสีสถานะ
@@ -31,177 +32,166 @@ const getStatusStyle = (status) => {
         case 'cancelled':
             return { backgroundColor: '#FEE2E2', color: colors.danger, border: `1px solid ${colors.danger}` };
         default:
-            return { backgroundColor: '#E5E7EB', color: colors.gray, border: `1px solid ${colors.gray}` };
+            return { backgroundColor: colors.gray, color: colors.white, border: `1px solid ${colors.gray}` };
     }
 };
 
 export default function OrderDetailPage() {
-    const { user } = useAuth();
+    const { orderId } = useParams();
     const router = useRouter();
-    const params = useParams(); 
-    
-    // ✅ แก้ไข: ดึงค่าจาก params ให้ตรงกับชื่อโฟลเดอร์ [orderId]
-    const orderId = params.orderId; 
-    
+    const { user, isLoading: isAuthLoading } = useAuth();
+
     const [order, setOrder] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // 💰 ฟังก์ชันสำหรับจัดการการชำระเงิน
-    const handlePayment = async () => {
-        if (!order) return;
-
-        // **!!! สำคัญ !!!** // 1. ตรงนี้คือจุดที่คุณต้องเรียก Payment Gateway จริง
-        alert(`กำลังเข้าสู่ระบบชำระเงิน Order ID: ${orderId} ยอด ${order.total_price.toLocaleString()} บาท...`);
-        
-        try {
-            // 2. เมื่อได้รับ Callback ว่าชำระเงินสำเร็จแล้ว ค่อยอัปเดตสถานะใน PocketBase
-            // เราจำลองการอัปเดตสถานะเป็น 'processing' ทันที
-            const updatedOrder = await pb.collection('orders').update(orderId, {
-                 status: 'processing', // เปลี่ยนสถานะ
-            });
-            
-            setOrder(updatedOrder);
-            alert("✅ ชำระเงินสำเร็จ! สถานะอัปเดตเป็น 'Processing'");
-
-        } catch (error) {
-            console.error("Payment or Update failed:", error);
-            alert("🛑 เกิดข้อผิดพลาดในการชำระเงินหรืออัปเดตสถานะ");
-        }
-    };
-
+    // 1. ตรวจสอบการล็อกอิน
     useEffect(() => {
-        if (!user) {
+        if (!isAuthLoading && !user) {
             router.push('/signin');
-            return;
         }
+    }, [user, isAuthLoading, router]);
 
-        if (orderId) {
-            fetchOrderDetail(orderId);
-        }
-    }, [user, router, orderId]);
+    // 2. ดึงข้อมูลคำสั่งซื้อ (เพิ่ม isMounted Flag)
+    useEffect(() => {
+        let isMounted = true; // Flag สำหรับ Component Mount
+        
+        const fetchOrder = async () => {
+            if (!orderId || !user) return; // ไม่ดึงข้อมูลถ้าไม่มี ID หรือ User
 
-    const fetchOrderDetail = async (id) => {
-        try {
-            const record = await pb.collection('orders').getOne(id, {
-                // ต้อง expand 'items.product' เพื่อดึงข้อมูลสินค้าในรายการ Order นั้นๆ (ถ้า items เก็บเป็น relations)
-                // ถ้า items เก็บเป็น JSON array ใน order record อยู่แล้ว ไม่จำเป็นต้อง expand
-                // เราจะใช้โครงสร้างที่ง่ายกว่า คือใช้ข้อมูลสินค้าที่ถูกบันทึกไว้ใน items: [] โดยตรง
-                expand: 'user', // ดึงข้อมูล user มาเช็คสิทธิ์เท่านั้น
-                requestKey: null 
-            });
+            setIsLoading(true);
+            setError(null);
+            
+            try {
+                // ดึงคำสั่งซื้อ
+                const record = await pb.collection('orders').getOne(orderId);
 
-            // ตรวจสอบความปลอดภัย
-            if (record.user !== user.id) {
-                alert("Order นี้ไม่ใช่ของคุณ!");
-                router.push('/profile/orders'); 
-                return;
+                // ตรวจสอบว่าคำสั่งซื้อนี้เป็นของผู้ใช้ที่ล็อกอินอยู่หรือไม่ (เพิ่มความปลอดภัย)
+                if (record.user !== user.id) {
+                    if (isMounted) {
+                        setError('คุณไม่มีสิทธิ์เข้าถึงคำสั่งซื้อนี้');
+                        setOrder(null);
+                    }
+                    return;
+                }
+                
+                if (isMounted) { // ✅ เช็ค Flag ก่อนตั้งค่า State
+                    setOrder(record);
+                }
+            } catch (err) {
+                if (isMounted) { // ✅ เช็ค Flag ก่อนตั้งค่า Error
+                    console.error('Failed to fetch order:', err);
+                    
+                    // ปรับปรุงการจัดการ Error สำหรับ PocketBase Autocancellation
+                    if (err.message && err.message.includes('autocancelled')) {
+                        setError('การเชื่อมต่อฐานข้อมูลถูกยกเลิกอัตโนมัติ กรุณาลองใหม่');
+                    } else if (err.status === 404) {
+                        setError('ไม่พบคำสั่งซื้อนี้');
+                    } else {
+                        setError('เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ');
+                    }
+                    setOrder(null);
+                }
+            } finally {
+                if (isMounted) { // ✅ เช็ค Flag ก่อนตั้งค่า Loading
+                    setIsLoading(false);
+                }
             }
+        };
 
-            setOrder(record);
-        } catch (error) {
-            console.error("Failed to fetch order detail:", error);
-            setOrder(null);
-        } finally {
-            setIsLoading(false);
+        if (user && orderId) {
+            fetchOrder();
         }
-    };
+
+        // Cleanup Function: ทำงานเมื่อ Component ถูก Unmount
+        return () => {
+            isMounted = false;
+        };
+    }, [orderId, user]); // Dependency คือ orderId และ user
+
+    // --- การแสดงผล ---
+
+    if (isAuthLoading || isLoading) {
+        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2rem', color: colors.primary }}>กำลังโหลดรายละเอียดคำสั่งซื้อ...</div>;
+    }
     
-    // --- Render Loading / Error ---
-    if (isLoading) {
-        return <div style={{padding:'50px', textAlign:'center'}}>กำลังโหลดรายละเอียดคำสั่งซื้อ...</div>;
+    if (!user) {
+        return null;
     }
 
-    if (!order) {
+    if (error) {
         return (
-            <div style={{ maxWidth: '900px', margin: '0 auto', padding: '50px', textAlign: 'center' }}>
-                <h1 style={{color: colors.danger}}>ไม่พบคำสั่งซื้อ</h1>
-                <Link href="/profile/orders" style={{ color: colors.primary }}>
-                    ← กลับไปหน้าประวัติคำสั่งซื้อ
+            <div style={{ maxWidth: '800px', margin: '40px auto', padding: '30px', backgroundColor: colors.white, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                <div style={{ padding: '20px', backgroundColor: colors.danger, color: colors.white, borderRadius: '8px', marginBottom: '20px' }}>
+                    <strong>เกิดข้อผิดพลาด:</strong> {error}
+                </div>
+                <Link 
+                    href="/profile/orders" 
+                    style={{ color: colors.primary, textDecoration: 'underline', fontWeight: 'bold' }}
+                >
+                    &larr; กลับไปหน้ารายการคำสั่งซื้อ
                 </Link>
             </div>
         );
     }
     
-    // --- Render Detail ---
-    return (
-        <div style={{ maxWidth: '900px', margin: '30px auto', padding: '30px', fontFamily: 'sans-serif', backgroundColor: colors.white, borderRadius: '15px', boxShadow: '0 5px 15px rgba(0,0,0,0.05)' }}>
-            <Link href="/profile/orders" style={{ color: colors.gray, textDecoration: 'none', display: 'block', marginBottom: '20px' }}>
-                ← กลับไปหน้าประวัติคำสั่งซื้อ
-            </Link>
-            
-            <h1 style={{ color: colors.primary, borderBottom: `3px solid ${colors.secondary}`, paddingBottom: '10px', marginBottom: '30px' }}>
-                รายละเอียดคำสั่งซื้อ #{order.id.substring(0, 10)}
-            </h1>
+    if (!order) {
+        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2rem', color: colors.gray }}>ไม่พบข้อมูลคำสั่งซื้อที่ต้องการ</div>;
+    }
 
-            {/* Header / Status */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '15px', border: `1px solid ${colors.secondary}`, borderRadius: '10px', backgroundColor: '#F0F8FF' }}>
-                <p style={{ margin: 0, fontWeight: 'bold', color: colors.primary }}>
-                    วันที่สั่งซื้อ: {new Date(order.created).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </p>
-                <span style={{ 
-                    padding: '8px 15px', 
-                    borderRadius: '20px', 
-                    fontWeight: 'bold',
-                    ...getStatusStyle(order.status)
+    // แสดงรายละเอียดคำสั่งซื้อ
+    return (
+        <div style={{ maxWidth: '800px', margin: '40px auto', padding: '30px', backgroundColor: colors.white, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+            
+            <h1 style={{ color: colors.primary, borderBottom: `2px solid ${colors.border}`, paddingBottom: '15px', marginBottom: '25px' }}>
+                รายละเอียดคำสั่งซื้อ #{orderId.substring(0, 8)}
+            </h1>
+            
+            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Link 
+                    href="/profile/orders" 
+                    style={{ color: colors.gray, textDecoration: 'none', fontWeight: 'bold' }}
+                >
+                    &larr; กลับไปหน้ารายการคำสั่งซื้อ
+                </Link>
+                <div style={{ 
+                    ...getStatusStyle(order.status),
+                    padding: '8px 12px',
+                    borderRadius: '20px',
+                    fontWeight: 'bold'
                 }}>
-                    สถานะ: {order.status}
-                </span>
-            </div>
-            
-            {/* 💰 ปุ่มชำระเงิน (แสดงเฉพาะเมื่อสถานะเป็น pending) */}
-            {order.status === 'pending' && (
-                <div style={{ textAlign: 'center', margin: '20px 0' }}>
-                    <button 
-                        onClick={handlePayment} 
-                        style={{ 
-                            backgroundColor: '#ff9800', 
-                            color: 'white', 
-                            padding: '12px 25px', 
-                            border: 'none', 
-                            borderRadius: '8px', 
-                            cursor: 'pointer',
-                            fontSize: '1.1rem',
-                            fontWeight: 'bold',
-                            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                            transition: 'background-color 0.2s'
-                        }}
-                    >
-                        ชำระเงินตอนนี้ ({order.total_price.toLocaleString()} บาท)
-                    </button>
-                    <p style={{ color: colors.gray, marginTop: '10px', fontSize: '0.9rem' }}>
-                        คลิกเพื่อดำเนินการชำระเงินและอัปเดตสถานะ
-                    </p>
+                    {/* แสดงสถานะภาษาไทย */}
+                    {order.status === 'pending' ? 'รอดำเนินการ' : 
+                     order.status === 'processing' ? 'กำลังจัดส่ง' :
+                     order.status === 'completed' ? 'จัดส่งสำเร็จ' :
+                     order.status === 'cancelled' ? 'ยกเลิกแล้ว' : 'ไม่ระบุสถานะ'}
                 </div>
-            )}
-            
+            </div>
+
+            {/* ข้อมูลคำสั่งซื้อ */}
+            <div style={{ border: `1px solid ${colors.border}`, padding: '20px', borderRadius: '10px', backgroundColor: colors.background, marginBottom: '20px' }}>
+                <p style={{ margin: '5px 0' }}><strong>วันที่สั่งซื้อ:</strong> {new Date(order.created).toLocaleDateString('th-TH')}</p>
+                <p style={{ margin: '5px 0' }}><strong>ช่องทางการชำระเงิน:</strong> {order.payment_method || 'N/A'}</p>
+            </div>
+
             {/* รายการสินค้า */}
-            <h2 style={{ color: colors.gray, fontSize: '1.4rem', borderBottom: '1px solid #eee', paddingBottom: '5px', marginTop: '30px' }}>รายการสินค้าที่สั่ง</h2>
-            <div style={{ marginTop: '15px' }}>
-                {/* * โค้ดเดิมใช้ order.expand?.items?.map ซึ่งน่าจะเกิดจากโครงสร้าง PocketBase ที่เก็บ Order Items เป็น relation
-                  * แต่ตามภาพที่คุณส่งมา (list order) items ถูกเก็บเป็น JSON array ที่มี name/quantity/price อยู่แล้ว
-                  * ผมจึงเปลี่ยนมาใช้ order.items?.map เพื่อให้ทำงานได้ถ้า items เป็น JSON array
-                */}
-                {order.items?.map((item, index) => (
-                    <div key={index} style={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        padding: '10px 0', 
-                        borderBottom: '1px dotted #eee',
-                        alignItems: 'center'
-                    }}>
-                        <div style={{ flex: 3 }}>
-                            <p style={{ margin: 0, fontWeight: 'bold', color: colors.primary }}>
-                                {item.name || 'ไม่พบชื่อสินค้า'} 
-                            </p>
-                            <p style={{ margin: 0, color: colors.gray, fontSize: '0.9rem' }}>
-                                {item.product ? `(รหัสสินค้า: ${item.product.substring(0, 8)}...)` : ''}
-                            </p>
+            <h2 style={{marginTop: '30px', borderBottom: '1px solid #eee', paddingBottom: '5px', color: colors.primary}}>รายการสินค้า</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {Array.isArray(order.items) && order.items.map((item, index) => (
+                    <div 
+                        key={index}
+                        style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: `1px dashed ${colors.border}` }}
+                    >
+                        <div style={{ flex: 2 }}>
+                            {/* item.name ควรเป็นชื่อสินค้าที่บันทึกไว้ ณ เวลาที่สั่ง */}
+                            {item.name || 'สินค้าที่ถูกลบไปแล้ว'}
                         </div>
                         <div style={{ flex: 1, textAlign: 'center', color: colors.gray }}>
                             x {item.quantity}
                         </div>
                         <div style={{ flex: 1, textAlign: 'right', fontWeight: 'bold' }}>
-                            ฿{(item.quantity * (item.price || item.price_at_order || 0)).toLocaleString()}
+                            {/* ใช้ price_at_order หรือ price เป็นค่าสำรอง */}
+                            ฿{(item.quantity * (item.price_at_order || item.price || 0)).toLocaleString()}
                         </div>
                     </div>
                 ))}
@@ -210,18 +200,19 @@ export default function OrderDetailPage() {
             {/* สรุปยอดรวม */}
             <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '2px solid #ccc', textAlign: 'right' }}>
                 <p style={{ margin: '5px 0', fontSize: '1.2rem', fontWeight: 'bold', color: colors.primary }}>
-                    รวมทั้งสิ้น: <span style={{ color: colors.success, fontSize: '1.4rem' }}>฿{order.total_price.toLocaleString()}</span>
+                    รวมทั้งสิ้น: <span style={{ color: colors.success, fontSize: '1.4rem' }}>฿{order.total_price ? order.total_price.toLocaleString() : '0.00'}</span>
                 </p>
             </div>
 
-            {/* ✅ ส่วนที่เพิ่ม: ข้อมูลการจัดส่ง */}
+            {/* ข้อมูลการจัดส่ง */}
             <h2 style={{marginTop: '30px', borderBottom: '1px solid #eee', paddingBottom: '5px', color: colors.gray}}>ที่อยู่สำหรับจัดส่ง</h2>
-            <div style={{padding: '15px', border: '1px solid #f0f0f0', borderRadius: '8px', backgroundColor: '#fafafa'}}>
+            <div style={{padding: '15px', border: `1px solid ${colors.border}`, borderRadius: '8px', backgroundColor: colors.background}}>
                 <p><strong>ชื่อผู้รับ:</strong> {order.name || 'N/A'}</p>
                 <p><strong>เบอร์โทร:</strong> {order.phone || 'N/A'}</p>
                 <p style={{whiteSpace: 'pre-wrap', margin: 0}}><strong>ที่อยู่:</strong> {order.address || 'N/A'}</p>
             </div>
-            {/* 🛑 สิ้นสุดส่วนที่เพิ่ม */}
+            
+            {/* ... อาจเพิ่มส่วนอื่นๆ เช่น ปุ่มยกเลิกคำสั่งซื้อ (ถ้าสถานะเป็น 'pending') ... */}
 
         </div>
     );

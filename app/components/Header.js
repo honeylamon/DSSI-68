@@ -5,7 +5,7 @@ import { useCart } from '@/app/contexts/CartContext';
 import { useAuth } from '@/app/contexts/AuthContext'; 
 import styles from './Header.module.css';
 import AdminLink from './AdminLink'; 
-import SearchBar from './SearchBar'; // 👈 1. ต้องมีบรรทัดนี้ (นำเข้า SearchBar)
+import SearchBar from './SearchBar'; 
 
 export default function Header() {
     const { cart } = useCart();
@@ -26,23 +26,34 @@ export default function Header() {
                  <Link href="/" className={styles.logoLink}>Baan Joy</Link>
             </div>
 
-            {/* ✅ 2. เปลี่ยนจาก <input> ธรรมดา เป็น <SearchBar /> ตรงนี้ครับ */}
             <div className={styles.searchContainer}>
                  <SearchBar /> 
             </div>
 
             <div className={styles.actionsContainer}>
+                {/* ลิงก์ตะกร้าสินค้า */}
                 <Link href="/cart" className={styles.cartLink}>ตะกร้า ({totalItems})</Link>
 
                 {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span className={styles.welcomeText}>Welcome, {user.name}</span>
+                        
+                        {/* ✅ NEW: ปุ่ม/ไอคอน PROFILE สำหรับผู้ใช้ที่ล็อกอินแล้ว */}
+                        <Link href="/profile" className={styles.profileLink}>
+                            <div className={styles.profileIcon} title={`โปรไฟล์ของ ${user.name || user.username}`}>
+                                <span>👤</span> 
+                            </div>
+                        </Link>
+                        
+                        {/* ปุ่ม Admin (จะแสดงเฉพาะ Admin เท่านั้น ตาม logic ใน AdminLink.js) */}
                         <AdminLink /> 
+                        
+                        {/* ปุ่ม Logout */}
                         <button onClick={handleLogout} className={styles.logoutButton}>Logout</button>
                     </div>
                 ) : (
+                    // ถ้ายังไม่ได้ล็อกอิน ให้แสดงปุ่ม Sign In
                     <Link href="/signin" className={styles.profileLink}>
-                        <div className={styles.profileIcon}>
+                        <div className={styles.profileIcon} title="เข้าสู่ระบบ">
                             <span>👤</span>
                         </div>
                     </Link>

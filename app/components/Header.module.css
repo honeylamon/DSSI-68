@@ -8,7 +8,7 @@
     background-color: #3e594b; /* สีเขียวเข้ม */
     color: white;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    position: sticky; /* ทำให้ Header ค้างอยู่ด้านบนเมื่อเลื่อนจอ */
+    position: sticky; 
     top: 0;
     z-index: 1000;
 }
@@ -20,16 +20,18 @@
     text-decoration: none;
 }
 
+/* ส่วน Search Bar (ใช้ร่วมกับ SearchBar.js) */
 .searchContainer {
     position: relative;
-    flex-grow: 1; /* ทำให้ช่องค้นหาขยายเต็มพื้นที่ที่เหลือ */
+    flex-grow: 1; 
     margin: 0 24px;
     max-width: 600px;
 }
 
+/* หากคุณใช้ CSS ภายใน SearchBar.js แล้ว คุณอาจไม่จำเป็นต้องใช้ .searchInput และ .searchIcon ตรงนี้ */
 .searchInput {
     width: 100%;
-    padding: 10px 40px 10px 15px; /* เพิ่ม padding ด้านขวาสำหรับไอคอน */
+    padding: 10px 40px 10px 15px; 
     border-radius: 8px;
     border: none;
     font-size: 1rem;
@@ -48,56 +50,101 @@
 .actionsContainer {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 20px; /* เพิ่มระยะห่างระหว่างปุ่ม Cart, Profile, Admin, Logout */
 }
 
 .cartLink {
     color: white;
     text-decoration: none;
     font-size: 1rem;
-    white-space: nowrap; /* ป้องกันการตัดคำ */
+    white-space: nowrap; 
     transition: color 0.2s;
+    font-weight: bold; /* ทำให้เด่นขึ้น */
 }
 
 .cartLink:hover {
     color: #e0e0e0;
 }
 
-.profileLink .profileIcon {
+/* ------------------------------------------- */
+/* ✅ NEW & ADJUSTED STYLES FOR PROFILE / LOGOUT */
+/* ------------------------------------------- */
+
+/* สไตล์สำหรับปุ่ม/ลิงก์ Profile (Link href="/profile") */
+.profileLink {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+/* สไตล์สำหรับไอคอนโปรไฟล์ 👤 */
+.profileIcon {
     width: 40px;
     height: 40px;
     border-radius: 50%;
     background-color: white;
-    color: #3e594b;
+    color: #3e594b; /* Dark Green */
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 1.5rem;
-    transition: transform 0.2s;
+    font-size: 1.2rem;
+    transition: opacity 0.2s;
 }
 
 .profileLink:hover .profileIcon {
-    transform: scale(1.1);
+    opacity: 0.8;
 }
 
-.welcomeText {
-    font-size: 0.9rem;
-    white-space: nowrap; /* ป้องกันการตัดคำ */
-    color: #e0e0e0;
-}
-
+/* สไตล์สำหรับปุ่ม Logout */
 .logoutButton {
-    background-color: white;
-    color: #3e594b; /* สีเดียวกับพื้นหลัง Header */
+    background-color: #ef4444; /* สีแดง */
+    color: white;
     border: none;
-    border-radius: 5px;
     padding: 8px 12px;
-    font-size: 0.9rem;
-    font-weight: bold;
+    border-radius: 20px;
     cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
+    font-weight: bold;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    font-size: 0.95rem;
 }
 
 .logoutButton:hover {
-    background-color: #f0f0f0;
+    background-color: #dc2626; /* สีแดงเข้มขึ้น */
+}
+
+/* สไตล์สำหรับข้อความต้อนรับ (ถ้าใช้ใน Header.js) */
+.welcomeText {
+    font-size: 0.95rem;
+    color: white;
+    white-space: nowrap;
+}
+
+/* ------------------------------------------- */
+
+
+/* Responsive Design (ถ้าต้องการ) */
+@media (max-width: 768px) {
+    .mainHeader {
+        flex-wrap: wrap;
+        padding: 10px 15px;
+    }
+
+    .searchContainer {
+        order: 3; /* ย้ายช่องค้นหาลงมาอยู่บรรทัดที่สอง */
+        flex-basis: 100%;
+        margin: 10px 0;
+    }
+
+    .actionsContainer {
+        gap: 10px;
+    }
+
+    .logoContainer {
+        order: 1;
+    }
+
+    .actionsContainer {
+        order: 2;
+    }
 }

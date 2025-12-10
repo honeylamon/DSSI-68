@@ -130,23 +130,7 @@ export default function AdminDashboard() {
 
                 </div>
 
-                {/* 3. ระบบ AI */}
-                <h2 style={{ color: colors.darkGreen, marginBottom: '20px', borderLeft: `5px solid ${colors.hotPink}`, paddingLeft: '15px' }}>
-                    ระบบ AI อัจฉริยะ
-                </h2>
-                
-                <div style={{ backgroundColor: colors.white, padding: '30px', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)', border: `2px solid ${colors.hotPink}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                        <div style={{ ...iconStyle, backgroundColor: '#FCE4EC', fontSize: '30px', marginRight: '20px' }}>🤖</div>
-                        <div>
-                            <h3 style={{ margin: 0, color: colors.darkGreen }}>Train AI ค้นหาสินค้า</h3>
-                            <p style={{ margin: '5px 0 0 0', color: '#777' }}>กดปุ่มนี้เมื่อมีการเพิ่มสินค้าใหม่ เพื่อให้ AI รู้จักสินค้า</p>
-                        </div>
-                    </div>
-                    {/* ปุ่ม Train Button */}
-                    <TrainButton />
-                </div>
-
+               
             </div>
         </div>
     );

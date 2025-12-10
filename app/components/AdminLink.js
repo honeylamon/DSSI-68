@@ -28,7 +28,7 @@ export default function AdminLink() {
                 fontWeight: 'bold'
             }}
         >
-            ⚙️ จัดการสินค้า (Admin)
+            จัดการสินค้า (Admin)
         </Link>
     );
 }

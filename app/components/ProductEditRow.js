@@ -9,7 +9,12 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
     const [previewUrl, setPreviewUrl] = useState(null);
 
     const handleChange = (e) => {
-        const { name, value, files } = e.target;
+    const { name, value, files } = e.target;
+    setFormData(prev => ({
+        ...prev,
+        [name]: name === 'picture' ? files[0] : value // ถ้าไม่ใช่รูป ให้เก็บ value (ซึ่งตอนนี้คือ ID)
+    }));
+};
         
         if (name === "picture") {
             const file = files[0];

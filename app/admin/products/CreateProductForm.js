@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-// ❌ เปลี่ยนจาก '../../../lib/pocketbase'
-// ✅ เป็น '../../lib/pocketbase' (ถอยหลัง 2 ก้าว)
+import { useState, useEffect } from 'react';
 import pb from '../../lib/pocketbase'; 
 
 // --- ชุดสี (Theme Colors) ---
@@ -12,7 +10,8 @@ const colors = {
     lightPink: '#FFF0F3',
     hotPink: '#FF80AB',
     white: '#FFFFFF',
-    red: '#ef4444'
+    red: '#ef4444',
+    orange: '#f59e0b'
 };
 
 // --- CSS Styles for Modal Component ---
@@ -36,94 +35,138 @@ const modalContentStyle = {
     width: '100%',
     maxWidth: '500px',
     animation: 'fadeIn 0.3s',
-    fontFamily: "'Kanit', sans-serif" 
+    fontFamily: "'Kanit', sans-serif",
+    backgroundColor: colors.white
+};
+
+const titleStyle = { 
+    marginBottom: '25px', 
+    color: colors.darkGreen, 
+    textAlign: 'center' 
 };
 const labelStyle = { 
     display: 'block', 
-    marginBottom: '8px', 
-    color: '#333', 
-    fontWeight: 'bold' 
+    marginBottom: '5px', 
+    marginTop: '15px', 
+    fontWeight: 'bold', 
+    color: colors.darkGreen 
 };
 const inputStyle = { 
     width: '100%', 
     padding: '12px', 
-    borderRadius: '10px', 
-    border: '1px solid #ddd', 
-    fontSize: '16px' 
+    border: '1px solid #ccc', 
+    borderRadius: '8px', 
+    boxSizing: 'border-box' 
 };
 const fileInputStyle = { 
-    width: '100%', 
     padding: '10px', 
-    borderRadius: '10px', 
-    border: '1px dashed #ccc', 
-    backgroundColor: '#fafafa' 
+    width: '100%', 
+    border: '1px solid #ccc', 
+    borderRadius: '8px', 
+    boxSizing: 'border-box',
+    backgroundColor: colors.lightPink
 };
-const saveButtonStyle = {
-    flex: 1,
-    padding: '15px', 
-    color: 'white', 
+const cancelButtonStyle = { 
+    padding: '12px 20px', 
     border: 'none', 
-    borderRadius: '12px', 
-    fontSize: '18px', 
-    fontWeight: 'bold', 
-    cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    borderRadius: '8px', 
+    color: colors.white, 
+    cursor: 'pointer', 
+    backgroundColor: '#9ca3af' 
 };
-const cancelButtonStyle = {
-    flex: 1,
-    padding: '15px', 
-    backgroundColor: '#E0E0E0', 
-    color: '#555', 
+const saveButtonStyle = { 
+    padding: '12px 20px', 
     border: 'none', 
-    borderRadius: '12px', 
-    fontSize: '18px', 
-    fontWeight: 'bold', 
-    cursor: 'pointer',
-    transition: 'background-color 0.2s'
+    borderRadius: '8px', 
+    color: colors.white, 
+    cursor: 'pointer', 
+    fontWeight: 'bold' 
 };
-// --- END CSS Styles ---
+const errorStyle = { 
+    color: colors.red, 
+    marginBottom: '10px', 
+    textAlign: 'center' 
+};
 
-
-export default function CreateProductForm({ onSaveSuccess, onClose }) {
-    const [formData, setFormData] = useState({ name: '', price: '', picture: null });
+export default function CreateProductForm({ onClose, onProductCreated }) {
+    const [formData, setFormData] = useState({
+        name: '',
+        price: '',
+        stock: '0', 
+        category: '', 
+        picture: null,
+    });
     const [isSaving, setIsSaving] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    
+    const [categories, setCategories] = useState([]);
+    const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
-    // ✅ ฟังก์ชันแยกสำหรับ Name Input
-    const handleNameChange = (e) => {
-        setFormData(prev => ({ ...prev, name: e.target.value }));
+    // --- ฟังก์ชันดึงหมวดหมู่ ---
+    const fetchCategories = async () => {
+        setIsLoadingCategories(true);
+        try {
+            const catRecords = await pb.collection('categories').getFullList({ requestKey: null });
+            setCategories(catRecords);
+            
+            // ตั้งค่าหมวดหมู่แรกเป็นค่าเริ่มต้น ถ้ามี
+            if (catRecords.length > 0) {
+                setFormData(p => ({ ...p, category: catRecords[0].id }));
+            }
+        } catch (err) {
+            console.error("Failed to fetch categories:", err);
+            setErrorMessage("ไม่สามารถดึงรายการหมวดหมู่ได้");
+        } finally {
+            setIsLoadingCategories(false);
+        }
     };
+    
+    // ดึงหมวดหมู่เมื่อ component ถูก mount
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+    // --- สิ้นสุดส่วนดึงหมวดหมู่ ---
 
-    // ✅ ฟังก์ชันแยกสำหรับ Price Input
-    const handlePriceChange = (e) => {
-        setFormData(prev => ({ ...prev, price: e.target.value }));
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(p => ({ ...p, [name]: value }));
     };
 
     const handleFileChange = (e) => {
-        setFormData(prev => ({ ...prev, picture: e.target.files[0] }));
+        setFormData(p => ({ ...p, picture: e.target.files[0] }));
     };
 
-    const handleCreateSubmit = async (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setErrorMessage('');
         setIsSaving(true);
 
+        if (!formData.category) {
+            setErrorMessage("กรุณาเลือกหมวดหมู่สินค้า");
+            setIsSaving(false);
+            return;
+        }
+
         try {
-            const data = new FormData();
-            data.append('name', formData.name);
-            data.append('price', formData.price);
+            const dataToCreate = new FormData();
+            dataToCreate.append('name', formData.name);
+            dataToCreate.append('price', parseFloat(formData.price));
+            dataToCreate.append('stock', parseInt(formData.stock)); 
+            dataToCreate.append('relation', formData.category); 
+
             if (formData.picture) {
-                data.append('picture', formData.picture);
+                dataToCreate.append('picture', formData.picture);
             }
 
-            await pb.collection('products').create(data);
-            
-            alert('✅ เพิ่มสินค้าสำเร็จ!');
-            
-            onSaveSuccess(); 
-            onClose(); 
+            await pb.collection('products').create(dataToCreate);
 
+            alert(`เพิ่มสินค้า "${formData.name}" สำเร็จ!`);
+            onClose(); 
+            onProductCreated(); 
         } catch (error) {
-            console.error(error);
-            alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            console.error("Failed to create product:", error);
+            setErrorMessage("เกิดข้อผิดพลาดในการบันทึก: " + (error.message || 'Unknown Error'));
         } finally {
             setIsSaving(false);
         }
@@ -131,21 +174,53 @@ export default function CreateProductForm({ onSaveSuccess, onClose }) {
 
     return (
         <div style={modalOverlayStyle}>
-            <div style={{ ...modalContentStyle, backgroundColor: colors.white }}>
-                <h2 style={{ color: colors.darkGreen, textAlign: 'center', marginBottom: '30px' }}>+ เพิ่มสินค้าใหม่</h2>
+            <div style={modalContentStyle}>
+                <h2 style={titleStyle}>เพิ่มสินค้าใหม่</h2>
+                {errorMessage && <p style={errorStyle}>{errorMessage}</p>}
                 
-                <form onSubmit={handleCreateSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    
+                <form onSubmit={handleSubmit}>
                     {/* ชื่อสินค้า */}
                     <div>
                         <label style={labelStyle}>ชื่อสินค้า</label>
-                        <input type="text" name="name" required value={formData.name} onChange={handleNameChange} style={inputStyle}/>
+                        <input type="text" name="name" value={formData.name} onChange={handleChange} required style={inputStyle}/>
                     </div>
                     
                     {/* ราคา */}
                     <div>
-                        <label style={labelStyle}>ราคา (บาท)</label>
-                        <input type="number" name="price" required value={formData.price} onChange={handlePriceChange} style={inputStyle}/>
+                        <label style={labelStyle}>ราคา</label>
+                        <input type="number" name="price" value={formData.price} onChange={handleChange} required min="0" step="0.01" style={inputStyle}/>
+                    </div>
+                    
+                    {/* สต็อก */}
+                    <div>
+                        <label style={labelStyle}>สต็อก (Stock)</label>
+                        <input type="number" name="stock" value={formData.stock} onChange={handleChange} required min="0" step="1" style={inputStyle}/>
+                    </div>
+
+                    {/* ✅ ส่วนการแสดงหมวดหมู่ */}
+                    <div>
+                        <label style={labelStyle}>หมวดหมู่</label>
+                        {isLoadingCategories ? (
+                            <p style={{color: colors.darkGreen}}>กำลังดึงรายการหมวดหมู่...</p>
+                        ) : categories.length > 0 ? (
+                            <select 
+                                name="category" 
+                                value={formData.category} 
+                                onChange={handleChange} 
+                                required 
+                                style={inputStyle}
+                            >
+                                <option value="">--- เลือกหมวดหมู่ ---</option>
+                                {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.id}>
+                                        {/* 🔴 แก้ไขตรงนี้: ใช้ .name แทน [t name] เพื่อดึงชื่อหมวดหมู่ที่ถูกต้อง */}
+                                        {cat.name || cat.id} 
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <p style={errorStyle}>ไม่พบหมวดหมู่! โปรดสร้างหมวดหมู่ใน PocketBase ก่อน</p> 
+                        )}
                     </div>
                     
                     {/* รูปภาพ */}
@@ -156,18 +231,23 @@ export default function CreateProductForm({ onSaveSuccess, onClose }) {
                     </div>
 
                     {/* ปุ่มบันทึก/ยกเลิก */}
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
                         <button 
                             type="button" 
                             onClick={onClose}
-                            style={cancelButtonStyle}
+                            style={{...cancelButtonStyle, flex: 1}}
                         >
                             ยกเลิก
                         </button>
                         <button 
                             type="submit" 
-                            disabled={isSaving || !formData.name || !formData.price}
-                            style={{ ...saveButtonStyle, backgroundColor: colors.darkGreen, opacity: (isSaving || !formData.name || !formData.price) ? 0.7 : 1 }}
+                            disabled={isSaving || !formData.name || !formData.price || !formData.category || isLoadingCategories}
+                            style={{ 
+                                flex: 1,
+                                ...saveButtonStyle, 
+                                backgroundColor: colors.darkGreen, 
+                                opacity: (isSaving || !formData.name || !formData.price || !formData.category || isLoadingCategories) ? 0.7 : 1 
+                            }}
                         >
                             {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
                         </button>

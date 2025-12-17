@@ -18,11 +18,11 @@
 
 เปิด Terminal ในโฟลเดอร์ที่ต้องการ และรันคำสั่งตามลำดับ:
 
-| # | คำสั่ง | คำอธิบาย |
+| # | คำสั่ง |
 | :--- | :--- | :--- |
-| **2.1** | `git clone <YOUR_REPO_URL> Baan Joy` | โคลนโปรเจกต์ลงในโฟลเดอร์ `Baan Joy` |
-| **2.2** | `cd Baan Joy` | ย้ายเข้าสู่โฟลเดอร์โปรเจกต์ |
-| **2.3** | `npm install` | ติดตั้ง **Dependencies ทั้งหมด** สำหรับ Next.js (Frontend) |
+| **2.1** | `git clone <YOUR_REPO_URL> Baan Joy` 
+| **2.2** | `cd Baan Joy` 
+| **2.3** | `npm install` 
 
 ---
 

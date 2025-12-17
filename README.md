@@ -20,8 +20,10 @@
 
 | # | คำสั่ง |
 
-| **2.1** | `git clone <YOUR_REPO_URL> Baan Joy` 
+| **2.1** | `git clone https://github.com/honeylamon/DSSI-68.git Baan Joy`
+
 | **2.2** | `cd Baan Joy` 
+
 | **2.3** | `npm install` 
 
 ---

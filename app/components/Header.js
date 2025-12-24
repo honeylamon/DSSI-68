@@ -6,6 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import styles from './Header.module.css';
 import AdminLink from './AdminLink'; 
 import SearchBar from './SearchBar'; 
+import pb from '@/app/lib/pocketbase'; // ✅ 1. เพิ่มบรรทัดนี้: นำเข้า PocketBase
 
 export default function Header() {
     const { cart } = useCart();
@@ -37,14 +38,29 @@ export default function Header() {
                 {user ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         
-                        {/* ✅ NEW: ปุ่ม/ไอคอน PROFILE สำหรับผู้ใช้ที่ล็อกอินแล้ว */}
+                        {/* ✅ 2. แก้ไขส่วนแสดงผลรูปโปรไฟล์ตรงนี้ */}
                         <Link href="/profile" className={styles.profileLink}>
                             <div className={styles.profileIcon} title={`โปรไฟล์ของ ${user.name || user.username}`}>
-                                <span>👤</span> 
+                                {user.avatar ? (
+                                    /* กรณีมีรูปภาพ: แสดงรูป User */
+                                    <img 
+                                        src={pb.files.getUrl(user, user.avatar)} 
+                                        alt="Profile"
+                                        style={{ 
+                                            width: '100%', 
+                                            height: '100%', 
+                                            borderRadius: '50%', 
+                                            objectFit: 'cover' 
+                                        }}
+                                    />
+                                ) : (
+                                    /* กรณีไม่มีรูปภาพ: แสดงไอคอนเดิม */
+                                    <span>👤</span>
+                                )}
                             </div>
                         </Link>
                         
-                        {/* ปุ่ม Admin (จะแสดงเฉพาะ Admin เท่านั้น ตาม logic ใน AdminLink.js) */}
+                        {/* ปุ่ม Admin */}
                         <AdminLink /> 
                         
                         {/* ปุ่ม Logout */}

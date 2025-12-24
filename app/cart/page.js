@@ -5,21 +5,37 @@ import Link from 'next/link';
 import pb from '@/app/lib/pocketbase';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react'; // ✅ Import useState
+import { useState, useEffect } from 'react'; 
+
+// ✅ กำหนด URL ของ PocketBase (IP เครื่องของคุณ)
+const POCKETBASE_URL = 'http://192.168.1.62:8090'; 
 
 export default function CartPage() {
     const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
     const { user } = useAuth();
     const router = useRouter();
     
-    // ✅ 1. State สำหรับเก็บข้อมูลที่อยู่
+    // State สำหรับเก็บข้อมูลที่อยู่
     const [addressDetails, setAddressDetails] = useState({
-        recipient: user?.name || '', // ดึงชื่อจาก user ที่ล็อกอินเป็นค่าเริ่มต้น
+        recipient: '',
         phone: '',
         address: '',
         city: '',
         postcode: ''
     });
+
+    // ดึงข้อมูล User มาใส่ในฟอร์มอัตโนมัติ
+    useEffect(() => {
+        if (user) {
+            setAddressDetails({
+                recipient: user.name || user.username || '',
+                phone: user.phone || '',       
+                address: user.address || '',   
+                city: user.city || '',         
+                postcode: user.postcode || user.postalCode || '' 
+            });
+        }
+    }, [user]);
 
     const totalPrice = Array.isArray(cart) 
         ? cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -35,27 +51,23 @@ export default function CartPage() {
 
         if (cart.length === 0) return;
         
-        // ✅ 2. Validation ตรวจสอบข้อมูลที่อยู่
-        if (!addressDetails.recipient || !addressDetails.address || !addressDetails.phone || !addressDetails.postcode) {
-            alert('กรุณากรอกข้อมูลที่อยู่และเบอร์โทรศัพท์ให้ครบถ้วน');
+        // Validation ตรวจสอบข้อมูล
+        if (!addressDetails.recipient || !addressDetails.address || !addressDetails.phone) {
+            alert('กรุณากรอกชื่อ, เบอร์โทร และที่อยู่ให้ครบถ้วน');
             return;
         }
 
         try {
-            // 3. เตรียมข้อมูลลง Database
             const data = {
                 user: user.id,
                 items: JSON.stringify(cart),
                 total_price: totalPrice,
                 status: 'pending',
-                // ✅ 4. ส่งข้อมูลที่อยู่เป็น JSON
                 address_detail: JSON.stringify(addressDetails), 
             };
 
-            // สร้าง Order ใน PocketBase
             await pb.collection('orders').create(data);
             
-            // ล้างตะกร้า
             if (clearCart) {
                 clearCart();
             } else {
@@ -63,11 +75,11 @@ export default function CartPage() {
             }
 
             alert('สั่งซื้อสำเร็จ! โปรดตรวจสอบสถานะในหน้าประวัติคำสั่งซื้อ');
-            router.push('/profile/orders'); // ไปหน้าประวัติการสั่งซื้อ (สมมติว่ามี)
+            router.push('/profile/orders');
 
         } catch (error) {
             console.error(error);
-            alert('เกิดข้อผิดพลาดในการสร้าง Order: กรุณาตรวจสอบ API Rules/Field ใน PocketBase');
+            alert('เกิดข้อผิดพลาดในการสร้าง Order: ' + error.message);
         }
     };
 
@@ -83,38 +95,43 @@ export default function CartPage() {
         );
     }
 
-    // --- ส่วนแสดงผล ---
-    const inputStyle = {
-        width: '100%',
-        padding: '10px',
-        margin: '5px 0 15px 0',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        boxSizing: 'border-box'
-    };
-
-    const labelStyle = {
-        fontWeight: 'bold',
-        display: 'block',
-        marginTop: '10px'
-    };
+    const inputStyle = { width: '100%', padding: '10px', margin: '5px 0 15px 0', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' };
+    const labelStyle = { fontWeight: 'bold', display: 'block', marginTop: '10px' };
 
     return (
         <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
             <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>ตะกร้าสินค้า</h1>
             
-            {/* รายการสินค้า (เหมือนเดิม) */}
             <div style={{ marginTop: '20px' }}>
-                {cart.map(item => {
-                    const imageUrl = item.image 
-                        ? pb.files.getUrl(item, item.image) 
-                        : 'https://via.placeholder.com/80?text=No+Image';
+                {cart.map((item, index) => {
+                    // ✅ 1. เช็ค collectionId (ถ้าไม่มีให้เดาว่าเป็น products)
+                    const collectionId = item.collectionId || item.collectionName || 'products';
+                    
+                    // ✅ 2. ดึงชื่อไฟล์รูป (รองรับทั้ง picture และ image)
+                    const imageFilename = item.picture || item.image;
+
+                    // ✅ 3. สร้าง URL
+                    const imageUrl = (imageFilename && item.id) 
+                        ? `${POCKETBASE_URL}/api/files/${collectionId}/${item.id}/${imageFilename}`
+                        : null;
 
                     return (
-                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', padding: '1.5rem 0', borderBottom: '1px solid #eee' }}>
+                        <div key={item.id || index} style={{ display: 'flex', alignItems: 'center', padding: '1.5rem 0', borderBottom: '1px solid #eee' }}>
                             
+                            {/* กรอบรูปภาพ */}
                             <div style={{ width: '80px', height: '80px', flexShrink: 0, marginRight: '1.5rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9'}}>
-                                <img src={imageUrl} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                {imageUrl ? (
+                                    <img 
+                                        src={imageUrl} 
+                                        alt={item.name} 
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                        onError={(e) => {
+                                            e.target.style.display = 'none'; 
+                                            e.target.nextSibling.style.display = 'block'; 
+                                        }}
+                                    />
+                                ) : null}
+                                <div style={{ display: imageUrl ? 'none' : 'block', fontSize: '0.8rem', color: '#999' }}>No Img</div>
                             </div>
                             
                             <div style={{ flexGrow: 1 }}>
@@ -134,11 +151,15 @@ export default function CartPage() {
                 })}
             </div>
 
-            {/* ✅ ส่วนฟอร์มที่อยู่จัดส่ง */}
+            {/* ส่วนฟอร์มที่อยู่จัดส่ง */}
             <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fefefe' }}>
                 <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>ที่อยู่จัดส่ง</h2>
+                
+                <div style={{textAlign: 'right', marginBottom: '10px'}}>
+                   <small style={{color: '#666'}}>* ข้อมูลถูกดึงมาจากโปรไฟล์ของคุณ (หากมี)</small>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    
                     <div>
                         <label style={labelStyle}>ชื่อผู้รับ</label>
                         <input type="text" style={inputStyle} value={addressDetails.recipient} 
@@ -169,7 +190,6 @@ export default function CartPage() {
                 </div>
             </div>
 
-            {/* สรุปยอดและปุ่มชำระเงิน */}
             <div style={{ marginTop: '2rem', textAlign: 'right', borderTop: '2px solid #eee', paddingTop: '20px' }}>
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '10px' }}>ยอดรวม: <span style={{ color: '#10b981' }}>{totalPrice.toLocaleString()}</span> บาท</h2>
                 

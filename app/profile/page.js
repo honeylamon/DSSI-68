@@ -1,16 +1,16 @@
-// app/profile/page.js
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link'; 
-import { useAuth } from '@/app/contexts/AuthContext'; // ตรวจสอบ Path ให้ถูกต้อง
-import pb from '@/app/lib/pocketbase'; // ตรวจสอบ Path ให้ถูกต้อง
+import { useAuth } from '@/app/contexts/AuthContext'; 
+import pb from '@/app/lib/pocketbase'; 
 
-// --- Styles (Theme Colors) ---
+// --- Styles (ธีม Baan Joy) ---
 const colors = {
-    primary: '#1A4D2E', // Dark Green
-    danger: '#ef4444', // Red
+    primary: '#1A4D2E',
+    danger: '#ef4444',
+    warning: '#f59e0b',
     text: '#374151',
     border: '#e5e7eb',
     background: '#f9fafb',
@@ -19,92 +19,203 @@ const colors = {
 };
 
 export default function ProfilePage() {
-    // ดึงข้อมูล User และฟังก์ชัน Logout จาก Context
     const { user, logout, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
 
-    // ฟังก์ชัน Logout 
-    const handleLogout = () => {
-        logout();
-        router.push('/');
-    };
+    // --- State สำหรับการจัดการข้อมูล ---
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        name: '',
+        phone: '',
+        address: '',
+        city: '',
+        postalCode: '',
+        avatar: null
+    });
 
-    // --- การจัดการสถานะการโหลด/ไม่ได้ล็อกอิน ---
-    if (isAuthLoading) {
-        return <div style={{ textAlign: 'center', padding: '50px', color: colors.text }}>กำลังโหลดข้อมูลผู้ใช้...</div>;
-    }
-
-    if (!user) {
-        // ดีดไปหน้าล็อกอินถ้ายังไม่มี User
-        if (!isAuthLoading) {
+    // ✅ FIX 1: ย้ายการ Redirect ไปไว้ใน useEffect
+    useEffect(() => {
+        if (!isAuthLoading && !user) {
             router.push('/signin');
         }
-        return null;
-    }
-    // ------------------------------------------
+    }, [user, isAuthLoading, router]);
+
+    // โหลดข้อมูลเดิมเข้า Form
+    useEffect(() => {
+        if (user) {
+            setFormData({
+                name: user.name || '',
+                phone: user.phone || '',
+                address: user.address || '',
+                city: user.city || '',
+                postalCode: user.postcode || user.postalCode || '', // รองรับทั้งสองชื่อ
+                avatar: null
+            });
+        }
+    }, [user]);
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleFileChange = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            setFormData(prev => ({ ...prev, avatar: e.target.files[0] }));
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const data = new FormData();
+            data.append('name', formData.name);
+            data.append('phone', formData.phone);
+            data.append('address', formData.address);
+            data.append('city', formData.city);
+            data.append('postcode', formData.postalCode); // เช็คชื่อ field ใน PocketBase ให้ตรง
+
+            if (formData.avatar) {
+                data.append('avatar', formData.avatar);
+            }
+
+            await pb.collection('users').update(user.id, data);
+            
+            // รีโหลดหน้าเพื่อให้ข้อมูลอัปเดต (หรือจะใช้วิธี update context ก็ได้)
+            alert('บันทึกข้อมูลสำเร็จ');
+            setIsEditing(false);
+            window.location.reload(); 
+
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('เกิดข้อผิดพลาด: ' + error.message);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isAuthLoading) return <div style={{ textAlign: 'center', padding: '50px' }}>กำลังโหลด...</div>;
+    
+    // ✅ FIX 2: ถ้าไม่มี User ให้ return null ไปก่อน (การ redirect จะทำใน useEffect ข้างบน)
+    if (!user) return null;
 
     return (
-        <div style={{ maxWidth: '600px', margin: '40px auto', padding: '30px', backgroundColor: colors.white, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <div style={{ maxWidth: '700px', margin: '40px auto', padding: '30px', backgroundColor: colors.white, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
             
             <h1 style={{ color: colors.primary, borderBottom: `2px solid ${colors.border}`, paddingBottom: '15px', marginBottom: '25px' }}>
-                ข้อมูลบัญชีของคุณ
+                ข้อมูลส่วนตัว
             </h1>
 
-            {/* ส่วนแสดงข้อมูล User */}
-            <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: colors.background, borderRadius: '10px' }}>
-                <p style={{ margin: '5px 0', fontSize: '1.1rem' }}>
-                    <strong>ชื่อผู้ใช้ (Username):</strong> {user.username}
-                </p>
-                <p style={{ margin: '5px 0', fontSize: '1.1rem' }}>
-                    <strong>อีเมล:</strong> {user.email}
-                </p>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '30px' }}>
+                <div style={{ 
+                    width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#eee', 
+                    marginRight: '20px', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center',
+                    border: `1px solid ${colors.border}`
+                }}>
+                    {user.avatar ? (
+                        <img 
+                            src={pb.files.getUrl(user, user.avatar)} 
+                            alt="Profile" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                    ) : (
+                        <span style={{ fontSize: '2rem' }}>👤</span>
+                    )}
+                </div>
+                <div>
+                    <h2 style={{ margin: 0, color: colors.text }}>{user.name || user.username}</h2>
+                    <p style={{ margin: '5px 0 0', color: '#666' }}>{user.email}</p>
+                </div>
             </div>
 
-            {/* ======================================================= */}
-            {/* ✅ ลิงก์สำหรับดูประวัติคำสั่งซื้อ (Order History) - ไม่มีอีโมจิ */}
-            {/* ======================================================= */}
-            <div style={{ marginTop: '30px', borderTop: `1px solid ${colors.border}`, paddingTop: '20px' }}>
-                <Link 
-                    href="/profile/orders" // ชี้ไปยังหน้าประวัติคำสั่งซื้อ
-                    style={{ 
-                        display: 'block', 
-                        padding: '15px', 
-                        backgroundColor: colors.primary, 
-                        color: colors.white, 
-                        borderRadius: '8px', 
-                        textDecoration: 'none',
-                        fontWeight: 'bold',
-                        textAlign: 'center',
-                        fontSize: '1rem',
-                        transition: 'background-color 0.2s',
-                        cursor: 'pointer'
-                    }}
-                    onMouseOver={e => e.currentTarget.style.backgroundColor = colors.buttonHover}
-                    onMouseOut={e => e.currentTarget.style.backgroundColor = colors.primary}
-                >
-                    ดูประวัติและติดตามคำสั่งซื้อทั้งหมด
-                </Link>
-            </div>
-            {/* ======================================================= */}
+            {!isEditing ? (
+                // --- โหมดแสดงผล (View Mode) ---
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div style={gridStyle}>
+                        <div>
+                            <label style={labelStyle}>ชื่อ-นามสกุล</label>
+                            <div style={inputStyle}>{user.name || '-'}</div>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>เบอร์โทรศัพท์</label>
+                            <div style={inputStyle}>{user.phone || '-'}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label style={labelStyle}>ที่อยู่</label>
+                        <div style={inputStyle}>{user.address || '-'}</div>
+                    </div>
+                    <div style={gridStyle}>
+                        <div>
+                            <label style={labelStyle}>จังหวัด</label>
+                            <div style={inputStyle}>{user.city || '-'}</div>
+                        </div>
+                        <div>
+                            <label style={labelStyle}>รหัสไปรษณีย์</label>
+                            <div style={inputStyle}>{user.postcode || user.postalCode || '-'}</div>
+                        </div>
+                    </div>
 
-            {/* ปุ่ม Logout */}
-            <div style={{ marginTop: '30px', textAlign: 'center' }}>
-                <button 
-                    onClick={handleLogout}
-                    style={{ 
-                        padding: '10px 20px', 
-                        backgroundColor: colors.danger, 
-                        color: colors.white, 
-                        border: 'none', 
-                        borderRadius: '6px', 
-                        cursor: 'pointer', 
-                        fontSize: '1rem',
-                        transition: 'opacity 0.2s',
-                    }}
-                >
-                    ออกจากระบบ (Logout)
-                </button>
+                    <button onClick={() => setIsEditing(true)} style={{ ...btnStyle, backgroundColor: colors.warning, marginTop: '20px' }}>
+                        แก้ไขข้อมูล
+                    </button>
+                </div>
+            ) : (
+                // --- โหมดแก้ไข (Edit Mode) ---
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <div style={gridStyle}>
+                        <div>
+                            <label style={labelStyle}>ชื่อ-นามสกุล</label>
+                            <input type="text" name="name" value={formData.name} onChange={handleInputChange} style={inputStyle} />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>เบอร์โทรศัพท์</label>
+                            <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} style={inputStyle} />
+                        </div>
+                    </div>
+                    <div>
+                        <label style={labelStyle}>ที่อยู่</label>
+                        <textarea name="address" value={formData.address} onChange={handleInputChange} rows="3" style={{...inputStyle, resize: 'vertical'}} />
+                    </div>
+                    <div style={gridStyle}>
+                        <div>
+                            <label style={labelStyle}>จังหวัด</label>
+                            <input type="text" name="city" value={formData.city} onChange={handleInputChange} style={inputStyle} />
+                        </div>
+                        <div>
+                            <label style={labelStyle}>รหัสไปรษณีย์</label>
+                            <input type="text" name="postalCode" value={formData.postalCode} onChange={handleInputChange} style={inputStyle} />
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label style={labelStyle}>เปลี่ยนรูปโปรไฟล์</label>
+                        <input type="file" accept="image/*" onChange={handleFileChange} style={inputStyle} />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                        <button type="submit" disabled={isSaving} style={{ ...btnStyle, backgroundColor: colors.primary }}>
+                            {isSaving ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
+                        </button>
+                        <button type="button" onClick={() => setIsEditing(false)} style={{ ...btnStyle, backgroundColor: '#9ca3af' }}>ยกเลิก</button>
+                    </div>
+                </form>
+            )}
+
+            <div style={{ marginTop: '25px', borderTop: `1px solid ${colors.border}`, paddingTop: '20px' }}>
+                <Link href="/profile/orders" style={linkStyle}>ดูประวัติและติดตามคำสั่งซื้อทั้งหมด</Link>
+                {/* <button onClick={() => { logout(); router.push('/'); }} style={logoutBtnStyle}>ออกจากระบบ (Logout)</button> */}
             </div>
         </div>
     );
 }
+
+// --- Internal Styles ---
+const gridStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' };
+const labelStyle = { display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '0.9rem' };
+const inputStyle = { width: '100%', padding: '10px', borderRadius: '5px', border: `1px solid ${colors.border}`, boxSizing: 'border-box' };
+const btnStyle = { flex: 1, padding: '12px', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' };
+const linkStyle = { display: 'block', padding: '15px', backgroundColor: colors.primary, color: 'white', borderRadius: '8px', textDecoration: 'none', textAlign: 'center', fontWeight: 'bold' };
+const logoutBtnStyle = { width: '100%', marginTop: '10px', padding: '12px', backgroundColor: colors.danger, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' };

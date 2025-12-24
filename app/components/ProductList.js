@@ -11,7 +11,21 @@ export default function ProductList({ productsWithImages }) {
     }
     
     const handleAddToCart = (product) => {
-        addToCart(product);
+        // ✅ ตรวจสอบข้อมูลก่อนส่งเข้าตะกร้า (Debug)
+        console.log("Adding product to cart:", product);
+
+        // ✅ สร้าง Object สินค้าใหม่ เพื่อให้แน่ใจว่ามีข้อมูลครบถ้วน โดยเฉพาะรูปภาพ
+        const itemToAdd = {
+            ...product, // ดึงข้อมูลเดิมมาทั้งหมด (id, name, price)
+            
+            // ✅ บังคับส่งชื่อไฟล์รูปภาพ (ใช้ picture ตาม Database ของคุณ)
+            picture: product.picture || product.image, 
+            
+            // ✅ บังคับส่ง collectionId (จำเป็นสำหรับสร้าง URL รูปภาพ)
+            collectionId: product.collectionId || 'products'
+        };
+
+        addToCart(itemToAdd);
         alert(`เพิ่ม "${product.name}" ลงในตะกร้าแล้ว!`);
     };
 
@@ -21,7 +35,7 @@ export default function ProductList({ productsWithImages }) {
             gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', 
             gap: '20px',
             padding: '10px',
-            alignItems: 'stretch' // ✅ บังคับให้ทุกกล่องสูงเท่ากัน
+            alignItems: 'stretch'
         }}> 
             {productsWithImages.map(({ product, imageUrl }) => {
                 if (!product) return null;
@@ -33,49 +47,52 @@ export default function ProductList({ productsWithImages }) {
                         padding: '15px',
                         backgroundColor: '#fff',
                         boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
-                        display: 'flex',           
-                        flexDirection: 'column',   
-                        justifyContent: 'space-between', 
-                        height: '100%'             // ✅ ยืดเต็มความสูง
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
                     }}>
-                        
-                        {/* รูปภาพ (ล็อคความสูง) */}
+                        {/* ส่วนรูปภาพ */}
                         <div style={{ 
-                            height: '140px', 
-                            width: '100%',
-                            display: 'flex', 
-                            justifyContent: 'center', 
-                            alignItems: 'center',
+                            position: 'relative', 
+                            width: '100%', 
+                            paddingTop: '100%', // อัตราส่วน 1:1
                             marginBottom: '10px',
+                            borderRadius: '8px',
                             overflow: 'hidden',
-                            position: 'relative'
+                            backgroundColor: '#f9f9f9'
                         }}>
-                            <Image
-                                src={imageUrl}
-                                alt={product.name}
-                                fill
-                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                style={{ objectFit: 'contain' }}
-                            />
+                            {imageUrl ? (
+                                <img 
+                                    src={imageUrl} 
+                                    alt={product.name}
+                                    style={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        width: '100%',
+                                        height: '100%',
+                                        objectFit: 'cover'
+                                    }}
+                                />
+                            ) : (
+                                <div style={{
+                                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc'
+                                }}>
+                                    No Image
+                                </div>
+                            )}
                         </div>
 
-                        {/* ชื่อสินค้า (ล็อคความสูง 2 บรรทัด) */}
-                        <div style={{ flexGrow: 1, marginBottom: '10px' }}> 
-                            <h3 style={{ 
-                                fontSize: '1rem', 
-                                margin: '0 0 5px 0',
-                                height: '2.8em',       // ✅ ล็อคความสูง
-                                overflow: 'hidden',
-                                display: '-webkit-box',
-                                WebkitLineClamp: 2,
-                                WebkitBoxOrient: 'vertical'
-                            }}>
+                        {/* ข้อมูลสินค้า */}
+                        <div style={{ marginBottom: '10px' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0 0 5px 0', color: '#333' }}>
                                 {product.name}
                             </h3>
                             <p style={{ 
-                                fontSize: '0.85rem', 
+                                margin: 0, 
                                 color: '#666', 
-                                margin: 0,
+                                fontSize: '0.9rem',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis'
@@ -87,7 +104,7 @@ export default function ProductList({ productsWithImages }) {
                         {/* ปุ่มกด (ดันลงล่างสุด) */}
                         <div style={{ marginTop: 'auto' }}>
                             <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#3e594b', marginBottom: '10px' }}>
-                                {product.price ?? 0} บาท
+                                {product.price ? product.price.toLocaleString() : 0} บาท
                             </p>
                             <button 
                                 onClick={() => handleAddToCart(product)} 
@@ -99,10 +116,11 @@ export default function ProductList({ productsWithImages }) {
                                     border: 'none',
                                     borderRadius: '6px',
                                     cursor: 'pointer',
-                                    transition: '0.2s'
+                                    transition: '0.2s',
+                                    fontWeight: 'bold'
                                 }}
                             >
-                                + เพิ่ม
+                                + เพิ่มลงตะกร้า
                             </button>
                         </div>
                     </div>

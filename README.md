@@ -22,7 +22,7 @@
 
 | **2.1** | `git clone https://github.com/honeylamon/DSSI-68.git BaanJoy`
 
-| **2.2** | `cd Baan Joy` 
+| **2.2** | `cd BaanJoy` 
 
 | **2.3** | `npm install` 
 

@@ -6,16 +6,58 @@ import pb from '@/app/lib/pocketbase';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react'; 
+import { FiTrash2, FiMinus, FiPlus, FiMapPin, FiTruck, FiShoppingBag, FiPhone, FiNavigation } from 'react-icons/fi';
 
-// ✅ กำหนด URL ของ PocketBase (IP เครื่องของคุณ)
+// ✅ กำหนด URL ของ PocketBase (ใช้ตามที่คุณตั้งไว้)
 const POCKETBASE_URL = 'http://192.168.1.62:8090'; 
+
+// --- Styles ---
+const styles = {
+    container: { maxWidth: '900px', margin: '40px auto', padding: '20px', fontFamily: "'Kanit', sans-serif" },
+    title: { fontSize: '2rem', fontWeight: 'bold', marginBottom: '20px', color: '#1A4D2E', display: 'flex', alignItems: 'center', gap: '10px' },
+    card: { backgroundColor: 'white', borderRadius: '16px', padding: '25px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)', marginBottom: '20px' },
+    emptyCart: { textAlign: 'center', padding: '50px', color: '#666' },
+    itemRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' },
+    itemInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
+    itemImg: { width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', backgroundColor: '#f9f9f9' },
+    itemName: { fontSize: '1.1rem', fontWeight: '600', color: '#333' },
+    itemPrice: { color: '#10b981', fontWeight: 'bold' },
+    qtyControl: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#f3f4f6', padding: '5px 10px', borderRadius: '8px' },
+    qtyBtn: { border: 'none', background: 'transparent', cursor: 'pointer', color: '#555', display: 'flex', alignItems: 'center' },
+    removeBtn: { color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '8px' },
+    
+    sectionTitle: { fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '15px', color: '#333', display: 'flex', alignItems: 'center', gap: '8px' },
+    inputGroup: { marginBottom: '15px' },
+    label: { display: 'block', marginBottom: '5px', fontWeight: '600', color: '#555', fontSize: '0.9rem' },
+    input: { width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '1rem', outline: 'none', transition: 'border 0.2s' },
+    
+    deliveryOption: { 
+        display: 'flex', alignItems: 'center', gap: '10px', padding: '15px', 
+        borderRadius: '10px', 
+        borderWidth: '2px',      
+        borderStyle: 'solid',    
+        borderColor: '#eee',     
+        cursor: 'pointer', 
+        marginBottom: '10px', transition: 'all 0.2s' 
+    },
+    deliveryOptionSelected: { 
+        borderColor: '#10b981', 
+        backgroundColor: '#ecfdf5' 
+    },
+    radio: { width: '20px', height: '20px', accentColor: '#10b981' },
+
+    summary: { marginTop: '20px', padding: '20px', backgroundColor: '#f9fafb', borderRadius: '12px' },
+    totalRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '20px' },
+    checkoutBtn: { width: '100%', padding: '15px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '10px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 10px rgba(16, 185, 129, 0.3)', transition: 'transform 0.1s' }
+};
 
 export default function CartPage() {
     const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
     const { user } = useAuth();
     const router = useRouter();
     
-    // State สำหรับเก็บข้อมูลที่อยู่
+    const [deliveryType, setDeliveryType] = useState('delivery'); 
+
     const [addressDetails, setAddressDetails] = useState({
         recipient: '',
         phone: '',
@@ -24,7 +66,6 @@ export default function CartPage() {
         postcode: ''
     });
 
-    // ดึงข้อมูล User มาใส่ในฟอร์มอัตโนมัติ
     useEffect(() => {
         if (user) {
             setAddressDetails({
@@ -38,167 +79,189 @@ export default function CartPage() {
     }, [user]);
 
     const totalPrice = Array.isArray(cart) 
-        ? cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+        ? cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) 
         : 0;
 
-    // --- ฟังก์ชันสั่งซื้อสินค้า ---
     const handleCheckout = async () => {
         if (!user) {
             alert('กรุณาเข้าสู่ระบบก่อนชำระเงิน');
-            router.push('/signin');
+            router.push('/login'); 
             return;
         }
 
-        if (cart.length === 0) return;
-        
-        // Validation ตรวจสอบข้อมูล
-        if (!addressDetails.recipient || !addressDetails.address || !addressDetails.phone) {
-            alert('กรุณากรอกชื่อ, เบอร์โทร และที่อยู่ให้ครบถ้วน');
+        if (cart.length === 0) {
+            alert('ตะกร้าสินค้าว่างเปล่า');
             return;
         }
+
+        if (!addressDetails.recipient || !addressDetails.phone) {
+            alert('กรุณากรอกชื่อและเบอร์โทรศัพท์ผู้รับ');
+            return;
+        }
+
+        if (deliveryType === 'delivery' && (!addressDetails.address || !addressDetails.city || !addressDetails.postcode)) {
+            alert('กรุณากรอกที่อยู่จัดส่งให้ครบถ้วน');
+            return;
+        }
+
+        const finalTotal = totalPrice + (deliveryType === 'delivery' ? 50 : 0);
+
+        const confirmOrder = confirm(`ยอดรวมทั้งหมด ${finalTotal.toLocaleString()} บาท \nยืนยันการสั่งซื้อและไปหน้าชำระเงินหรือไม่?`);
+        if (!confirmOrder) return;
 
         try {
-            const data = {
+            const orderData = {
                 user: user.id,
-                items: JSON.stringify(cart),
-                total_price: totalPrice,
+                total_price: finalTotal, 
                 status: 'pending',
-                address_detail: JSON.stringify(addressDetails), 
+                items: JSON.stringify(cart),
+                customerName: addressDetails.recipient,
+                phone: addressDetails.phone,
+                deliveryType: deliveryType, 
+                address: deliveryType === 'delivery' 
+                    ? `${addressDetails.address} ${addressDetails.city} ${addressDetails.postcode}`
+                    : 'รับสินค้าที่หน้าร้าน (Aunflata 18, 7656 Verdal)'
             };
 
-            await pb.collection('orders').create(data);
-            
-            if (clearCart) {
-                clearCart();
-            } else {
-                cart.forEach(item => removeFromCart(item.id));
+            // ✅ บันทึกข้อมูลและรับค่า record เพื่อเอา ID ไปใช้ต่อ
+            const record = await pb.collection('orders').create(orderData);
+
+            if (typeof clearCart === 'function') {
+                clearCart(); 
             }
 
-            alert('สั่งซื้อสำเร็จ! โปรดตรวจสอบสถานะในหน้าประวัติคำสั่งซื้อ');
-            router.push('/profile/orders');
+            // ✅ เปลี่ยนจุดนี้: ให้เด้งไปหน้าแจ้งโอนเงินพร้อม ID ของออเดอร์นั้นๆ
+            router.push(`/checkout/payment/${record.id}`); 
 
         } catch (error) {
-            console.error(error);
-            alert('เกิดข้อผิดพลาดในการสร้าง Order: ' + error.message);
+            console.error('Error creating order:', error);
+            alert('เกิดข้อผิดพลาดในการสั่งซื้อ: ' + error.message);
         }
     };
 
-    // กรณีตะกร้าว่าง
-    if (!cart || cart.length === 0) {
+    if (cart.length === 0) {
         return (
-            <div style={{ textAlign: 'center', padding: '50px' }}>
-                <h1 style={{color: '#333'}}>ตะกร้าสินค้าของคุณว่างเปล่า</h1>
-                <Link href="/" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                    กลับไปเลือกซื้อสินค้า
-                </Link>
+            <div style={styles.container}>
+                <div style={styles.card}>
+                    <div style={styles.emptyCart}>
+                        <FiShoppingBag size={50} color="#ddd" />
+                        <h2>ตะกร้าสินค้าว่างเปล่า</h2>
+                        <Link href="/" style={{ color: '#10b981', textDecoration: 'none', fontWeight: 'bold' }}>ไปเลือกซื้อสินค้ากันเถอะ</Link>
+                    </div>
+                </div>
             </div>
         );
     }
 
-    const inputStyle = { width: '100%', padding: '10px', margin: '5px 0 15px 0', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box' };
-    const labelStyle = { fontWeight: 'bold', display: 'block', marginTop: '10px' };
-
     return (
-        <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-            <h1 style={{ borderBottom: '2px solid #eee', paddingBottom: '10px' }}>ตะกร้าสินค้า</h1>
-            
-            <div style={{ marginTop: '20px' }}>
-                {cart.map((item, index) => {
-                    // ✅ 1. เช็ค collectionId (ถ้าไม่มีให้เดาว่าเป็น products)
-                    const collectionId = item.collectionId || item.collectionName || 'products';
-                    
-                    // ✅ 2. ดึงชื่อไฟล์รูป (รองรับทั้ง picture และ image)
-                    const imageFilename = item.picture || item.image;
+        <div style={styles.container}>
+            <h1 style={styles.title}>🛒 ตะกร้าสินค้าของฉัน</h1>
 
-                    // ✅ 3. สร้าง URL
-                    const imageUrl = (imageFilename && item.id) 
-                        ? `${POCKETBASE_URL}/api/files/${collectionId}/${item.id}/${imageFilename}`
-                        : null;
-
-                    return (
-                        <div key={item.id || index} style={{ display: 'flex', alignItems: 'center', padding: '1.5rem 0', borderBottom: '1px solid #eee' }}>
-                            
-                            {/* กรอบรูปภาพ */}
-                            <div style={{ width: '80px', height: '80px', flexShrink: 0, marginRight: '1.5rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9f9f9'}}>
-                                {imageUrl ? (
-                                    <img 
-                                        src={imageUrl} 
-                                        alt={item.name} 
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                                        onError={(e) => {
-                                            e.target.style.display = 'none'; 
-                                            e.target.nextSibling.style.display = 'block'; 
-                                        }}
-                                    />
-                                ) : null}
-                                <div style={{ display: imageUrl ? 'none' : 'block', fontSize: '0.8rem', color: '#999' }}>No Img</div>
+            {/* รายการสินค้า */}
+            <div style={styles.card}>
+                {cart.map((item) => (
+                    <div key={item.id} style={styles.itemRow}>
+                        <div style={styles.itemInfo}>
+                            <img 
+                                src={item.image ? `${POCKETBASE_URL}/api/files/products/${item.id}/${item.image}` : 'https://via.placeholder.com/80'} 
+                                alt={item.name} 
+                                style={styles.itemImg} 
+                            />
+                            <div>
+                                <div style={styles.itemName}>{item.name}</div>
+                                <div style={styles.itemPrice}>฿{item.price.toLocaleString()}</div>
                             </div>
-                            
-                            <div style={{ flexGrow: 1 }}>
-                                <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem' }}>{item.name}</h3>
-                                <p style={{ margin: 0, color: '#666' }}>{item.price} บาท</p>
-                            </div>
-                            
-                            <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: '4px' }}>
-                                <button onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={item.quantity <= 1} style={{ padding: '5px 10px', background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>-</button>
-                                <span style={{ padding: '0 15px', fontWeight: 'bold' }}>{item.quantity}</span>
-                                <button onClick={() => updateQuantity(item.id, item.quantity + 1)} style={{ padding: '5px 10px', background: '#f5f5f5', border: 'none', cursor: 'pointer' }}>+</button>
-                            </div>
-                            
-                            <button onClick={() => removeFromCart(item.id)} style={{ marginLeft: '2rem', color: '#ef4444', background: 'none', border: '1px solid #ef4444', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>ลบ</button>
                         </div>
-                    );
-                })}
+                        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                            <div style={styles.qtyControl}>
+                                <button onClick={() => updateQuantity(item.id, item.quantity - 1)} style={styles.qtyBtn}><FiMinus /></button>
+                                <span style={{fontWeight:'bold', minWidth:'20px', textAlign:'center'}}>{item.quantity}</span>
+                                <button onClick={() => updateQuantity(item.id, item.quantity + 1)} style={styles.qtyBtn}><FiPlus /></button>
+                            </div>
+                            <button onClick={() => removeFromCart(item.id)} style={styles.removeBtn}><FiTrash2 size={18} /></button>
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            {/* ส่วนฟอร์มที่อยู่จัดส่ง */}
-            <div style={{ marginTop: '40px', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', backgroundColor: '#fefefe' }}>
-                <h2 style={{ marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>ที่อยู่จัดส่ง</h2>
+            {/* ข้อมูลการจัดส่ง */}
+            <div style={styles.card}>
+                <h2 style={styles.sectionTitle}><FiMapPin /> ข้อมูลการจัดส่ง</h2>
                 
-                <div style={{textAlign: 'right', marginBottom: '10px'}}>
-                   <small style={{color: '#666'}}>* ข้อมูลถูกดึงมาจากโปรไฟล์ของคุณ (หากมี)</small>
+                <div style={{marginBottom:'20px'}}>
+                    <label style={{...styles.deliveryOption, ...(deliveryType === 'delivery' ? styles.deliveryOptionSelected : {})}}>
+                        <input type="radio" name="deliveryType" checked={deliveryType === 'delivery'} onChange={() => setDeliveryType('delivery')} style={styles.radio}/>
+                        <div style={{marginLeft: '10px'}}>
+                            <div style={{fontWeight:'bold', display:'flex', alignItems:'center', gap:'5px'}}><FiTruck /> จัดส่งตามที่อยู่</div>
+                            <div style={{fontSize:'0.85rem', color:'#666'}}>รอรับสินค้าที่บ้าน</div>
+                        </div>
+                    </label>
+
+                    <label style={{...styles.deliveryOption, ...(deliveryType === 'pickup' ? styles.deliveryOptionSelected : {})}}>
+                        <input type="radio" name="deliveryType" checked={deliveryType === 'pickup'} onChange={() => setDeliveryType('pickup')} style={styles.radio}/>
+                        <div style={{marginLeft: '10px'}}>
+                            <div style={{fontWeight:'bold', display:'flex', alignItems:'center', gap:'5px'}}><FiShoppingBag /> รับสินค้าที่ร้าน (Self Pickup)</div>
+                            <div style={{fontSize:'0.85rem', color:'#666'}}>ไปรับสินค้าเองที่ร้าน (ฟรีค่าส่ง)</div>
+                        </div>
+                    </label>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div>
-                        <label style={labelStyle}>ชื่อผู้รับ</label>
-                        <input type="text" style={inputStyle} value={addressDetails.recipient} 
-                               onChange={(e) => setAddressDetails({...addressDetails, recipient: e.target.value})} />
-                    </div>
-                    <div>
-                        <label style={labelStyle}>เบอร์โทรศัพท์</label>
-                        <input type="text" style={inputStyle} value={addressDetails.phone} 
-                               onChange={(e) => setAddressDetails({...addressDetails, phone: e.target.value})} />
-                    </div>
+                <div style={styles.inputGroup}>
+                    <label style={styles.label}>ชื่อผู้รับ</label>
+                    <input type="text" style={styles.input} value={addressDetails.recipient} onChange={(e) => setAddressDetails({...addressDetails, recipient: e.target.value})} />
                 </div>
-                
-                <label style={labelStyle}>ที่อยู่ (บ้านเลขที่, ถนน, ตำบล)</label>
-                <input type="text" style={inputStyle} value={addressDetails.address} 
-                       onChange={(e) => setAddressDetails({...addressDetails, address: e.target.value})} />
+                <div style={styles.inputGroup}>
+                    <label style={styles.label}>เบอร์โทรศัพท์</label>
+                    <input type="text" style={styles.input} value={addressDetails.phone} onChange={(e) => setAddressDetails({...addressDetails, phone: e.target.value})} />
+                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {deliveryType === 'delivery' && (
                     <div>
-                        <label style={labelStyle}>จังหวัด/เมือง</label>
-                        <input type="text" style={inputStyle} value={addressDetails.city} 
-                               onChange={(e) => setAddressDetails({...addressDetails, city: e.target.value})} />
+                        <div style={styles.inputGroup}>
+                            <label style={styles.label}>ที่อยู่จัดส่ง</label>
+                            <textarea rows="3" style={{...styles.input, resize:'none'}} value={addressDetails.address} onChange={(e) => setAddressDetails({...addressDetails, address: e.target.value})} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                            <div>
+                                <label style={styles.label}>จังหวัด/เมือง</label>
+                                <input type="text" style={styles.input} value={addressDetails.city} onChange={(e) => setAddressDetails({...addressDetails, city: e.target.value})} />
+                            </div>
+                            <div>
+                                <label style={styles.label}>รหัสไปรษณีย์</label>
+                                <input type="text" style={styles.input} value={addressDetails.postcode} onChange={(e) => setAddressDetails({...addressDetails, postcode: e.target.value})} />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label style={labelStyle}>รหัสไปรษณีย์</label>
-                        <input type="text" style={inputStyle} value={addressDetails.postcode} 
-                               onChange={(e) => setAddressDetails({...addressDetails, postcode: e.target.value})} />
+                )}
+
+                {deliveryType === 'pickup' && (
+                    <div style={{padding:'20px', backgroundColor:'#f0fdf4', borderRadius:'10px', border:'1px dashed #10b981', color:'#166534', textAlign:'center'}}>
+                        <h3 style={{marginTop:0, marginBottom:'10px', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}><FiMapPin /> พิกัดร้าน Baan Joy</h3>
+                        <p style={{fontSize:'1.1rem', fontWeight:'bold', marginBottom:'5px'}}>Aunflata 18, 7656 Verdal</p>
+                        <p style={{marginBottom:'5px', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px'}}><FiPhone /> เบอร์โทร: 4827 7305</p>
                     </div>
-                </div>
+                )}
             </div>
 
-            <div style={{ marginTop: '2rem', textAlign: 'right', borderTop: '2px solid #eee', paddingTop: '20px' }}>
-                <h2 style={{ fontSize: '1.5rem', marginBottom: '10px' }}>ยอดรวม: <span style={{ color: '#10b981' }}>{totalPrice.toLocaleString()}</span> บาท</h2>
+            {/* สรุปยอดเงิน */}
+            <div style={styles.summary}>
+                <div style={styles.totalRow}>
+                    <span>ค่าสินค้า</span>
+                    <span>฿{totalPrice.toLocaleString()}</span>
+                </div>
+                {deliveryType === 'delivery' && (
+                    <div style={{...styles.totalRow, fontSize:'1rem', color:'#666'}}>
+                        <span>ค่าจัดส่ง (โดยประมาณ)</span>
+                        <span>฿50</span> 
+                    </div>
+                )}
+                <div style={{borderTop:'2px solid #eee', margin:'15px 0'}}></div>
+                <div style={{...styles.totalRow, fontSize:'1.5rem', color:'#10b981'}}>
+                    <span>ยอดรวมสุทธิ</span>
+                    <span>฿{(totalPrice + (deliveryType === 'delivery' ? 50 : 0)).toLocaleString()}</span>
+                </div>
                 
-                <button 
-                    onClick={handleCheckout}
-                    style={{ padding: '12px 30px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                    ชำระเงิน
-                </button>
+                <button onClick={handleCheckout} style={styles.checkoutBtn}>ยืนยันการสั่งซื้อ</button>
             </div>
         </div>
     );

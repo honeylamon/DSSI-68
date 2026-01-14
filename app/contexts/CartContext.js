@@ -3,16 +3,15 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 
-// 1. สร้าง Context
 const CartContext = createContext();
 
 export function CartProvider({ children }) {
     const [cart, setCart] = useState([]);
 
-    // 2. เมื่อเปิดเว็บครั้งแรก ให้ดึงข้อมูลตะกร้าที่เคยบันทึกไว้ (ถ้ามี)
+    // 1. โหลดข้อมูลจาก LocalStorage ตอนเริ่ม
     useEffect(() => {
         try {
-            const storedCart = localStorage.getItem('my-cart');
+            const storedCart = localStorage.getItem('my-cart'); // ใช้ key เดิมของคุณ 'my-cart'
             if (storedCart) {
                 setCart(JSON.parse(storedCart));
             }
@@ -21,36 +20,28 @@ export function CartProvider({ children }) {
         }
     }, []);
 
-    // ==================== ✅ FIX HERE / นี่คือส่วนที่สำคัญที่สุดที่หายไป ====================
-    // 3. ทุกครั้งที่ state 'cart' มีการเปลี่ยนแปลง ให้บันทึกข้อมูลใหม่ลงไป
+    // 2. บันทึกลง LocalStorage ทุกครั้งที่ cart เปลี่ยน
     useEffect(() => {
-        // ไม่ต้องบันทึกถ้าเป็น state เริ่มต้นที่ยังเป็น array ว่าง
-        if (cart.length > 0 || localStorage.getItem('my-cart')) {
-             localStorage.setItem('my-cart', JSON.stringify(cart));
-        }
+        // บันทึกเฉพาะเมื่อมีการโหลดข้อมูลเสร็จแล้ว หรือมีการเปลี่ยนแปลง
+        localStorage.setItem('my-cart', JSON.stringify(cart));
     }, [cart]);
-    // =================================================================================
 
-    // 4. Logic การเพิ่มสินค้า (อันนี้ถูกต้องอยู่แล้ว แต่ใส่ไว้เพื่อความสมบูรณ์)
     const addToCart = (product) => {
         setCart(prevCart => {
             const existingItem = prevCart.find(item => item.id === product.id);
 
             if (existingItem) {
-                // ถ้ามีของอยู่แล้ว ให้อัปเดตจำนวน +1
                 return prevCart.map(item =>
                     item.id === product.id
                         ? { ...item, quantity: item.quantity + 1 }
                         : item
                 );
             } else {
-                // ถ้ายังไม่มี ให้เพิ่มเข้าไปใหม่ และกำหนดจำนวนเป็น 1
                 return [...prevCart, { ...product, quantity: 1 }];
             }
         });
     };
 
-    // (เพิ่มเติม) Logic การลบและอัปเดตจำนวน
     const removeFromCart = (productId) => {
         setCart(prevCart => prevCart.filter(item => item.id !== productId));
     };
@@ -67,11 +58,18 @@ export function CartProvider({ children }) {
         );
     };
 
+    // ✅✅ 3. เพิ่มฟังก์ชันนี้สำหรับล้างตะกร้า
+    const clearCart = () => {
+        setCart([]); // ล้าง state
+        localStorage.removeItem('my-cart'); // ล้างใน LocalStorage ด้วย
+    };
+
     const value = {
         cart,
         addToCart,
         removeFromCart,
-        updateQuantity
+        updateQuantity,
+        clearCart // ✅✅ 4. ส่งออกฟังก์ชันนี้ไปให้หน้าอื่นใช้
     };
 
     return (
@@ -81,7 +79,6 @@ export function CartProvider({ children }) {
     );
 }
 
-// 5. Custom Hook เพื่อง่ายต่อการเรียกใช้
 export function useCart() {
     return useContext(CartContext);
 }

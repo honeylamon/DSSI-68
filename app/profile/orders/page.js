@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import pb from '@/app/lib/pocketbase'; // ✅ ตรวจสอบ Path ให้ถูกต้อง
+import pb from '@/app/lib/pocketbase'; 
 import { useAuth } from '@/app/contexts/AuthContext'; 
 
 // --- Styles (CSS) ---
@@ -20,8 +20,6 @@ const colors = {
     white: '#FFFFFF'
 };
 
-// ฟังก์ชันช่วยแสดงสถานะเป็น Badge
-// ... (ฟังก์ชัน getStatusBadge เหมือนเดิม)
 const getStatusBadge = (status) => {
     let style = { 
         padding: '4px 8px', 
@@ -68,45 +66,40 @@ export default function OrderHistoryPage() {
     const [isLoadingOrders, setIsLoadingOrders] = useState(true);
     const [error, setError] = useState(null);
 
-    // 1. ตรวจสอบการล็อกอิน (ไม่เปลี่ยน)
     useEffect(() => {
         if (!isAuthLoading && !user) {
             router.push('/signin');
         }
     }, [user, isAuthLoading, router]);
 
-    // 2. ดึงข้อมูลคำสั่งซื้อ (ปรับปรุงเพื่อจัดการ Auto-Cancellation)
     useEffect(() => {
-        let isMounted = true; // สร้าง Flag สำหรับ Component Mount
+        let isMounted = true; 
         
         if (user) {
             const fetchOrders = async () => {
                 setIsLoadingOrders(true);
                 setError(null);
                 try {
-                    // ดึงข้อมูลคำสั่งซื้อทั้งหมด
                     const records = await pb.collection('orders').getFullList({
                         sort: '-created', 
                         filter: `user.id = '${user.id}'`, 
                     });
                     
-                    if (isMounted) { // ✅ เช็ค Flag ก่อนตั้งค่า State
+                    if (isMounted) {
                         setOrders(records);
                     }
                 } catch (err) {
-                    if (isMounted) { // ✅ เช็ค Flag ก่อนตั้งค่า Error
+                    if (isMounted) {
                         console.error('Failed to fetch orders:', err);
-                        
-                        // ตรวจสอบข้อผิดพลาด Auto-Cancellation โดยเฉพาะ
                         if (err.message && err.message.includes('autocancelled')) {
-                             setError('การเชื่อมต่อกับเซิร์ฟเวอร์ฐานข้อมูลหมดเวลา กรุณาลองใหม่อีกครั้ง');
+                             setError('การเชื่อมต่อหมดเวลา กรุณาลองใหม่อีกครั้ง');
                         } else {
                             setError('เกิดข้อผิดพลาดในการดึงข้อมูลคำสั่งซื้อ');
                         }
                         setOrders([]); 
                     }
                 } finally {
-                    if (isMounted) { // ✅ เช็ค Flag ก่อนตั้งค่า Loading
+                    if (isMounted) {
                         setIsLoadingOrders(false);
                     }
                 }
@@ -114,21 +107,16 @@ export default function OrderHistoryPage() {
             fetchOrders();
         }
         
-        // 3. Cleanup Function
         return () => {
-            isMounted = false; // เมื่อ Component ถูก Unmount/Re-render ให้ตั้งค่าเป็น false
+            isMounted = false;
         };
-    }, [user]); // Dependency คือ user
+    }, [user]);
 
-    // --- การแสดงผล (ส่วนที่เหลือเหมือนเดิม) ---
-    // ... (ส่วนการแสดงผล: loading, no user, error, orders list)
     if (isAuthLoading || isLoadingOrders) {
-        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2rem', color: colors.primary }}>กำลังโหลดประวัติคำสั่งซื้อ...</div>;
+        return <div style={{ textAlign: 'center', padding: '100px', fontSize: '1.2rem', color: colors.primary }}>กำลังโหลดประวัติคำสั่งซื้อ...</div>;
     }
     
-    if (!user) {
-        return null;
-    }
+    if (!user) return null;
 
     return (
         <div style={{ maxWidth: '900px', margin: '40px auto', padding: '30px', backgroundColor: colors.white, borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
@@ -138,10 +126,7 @@ export default function OrderHistoryPage() {
             </h1>
             
             <div style={{ marginBottom: '20px' }}>
-                <Link 
-                    href="/profile" 
-                    style={{ color: colors.gray, textDecoration: 'none', fontWeight: 'bold' }}
-                >
+                <Link href="/profile" style={{ color: colors.gray, textDecoration: 'none', fontWeight: 'bold' }}>
                     &larr; กลับไปหน้าโปรไฟล์
                 </Link>
             </div>
@@ -153,23 +138,18 @@ export default function OrderHistoryPage() {
             )}
 
             {orders.length === 0 ? (
-                // แสดงข้อความเมื่อไม่มีคำสั่งซื้อ
                 <div style={{ textAlign: 'center', padding: '50px', backgroundColor: colors.background, borderRadius: '8px' }}>
                     <p style={{ fontSize: '1.1rem', color: colors.text }}>คุณยังไม่มีประวัติคำสั่งซื้อ</p>
-                    <Link 
-                        href="/" 
-                        style={{ color: colors.primary, textDecoration: 'underline', marginTop: '10px', display: 'inline-block' }}
-                    >
+                    <Link href="/" style={{ color: colors.primary, textDecoration: 'underline', marginTop: '10px', display: 'inline-block' }}>
                         เริ่มเลือกซื้อสินค้า
                     </Link>
                 </div>
             ) : (
-                // แสดงรายการคำสั่งซื้อ
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     {orders.map((order) => (
                         <Link
                             key={order.id}
-                            href={`/profile/orders/${order.id}`} // ลิงก์ไปยังหน้ารายละเอียดคำสั่งซื้อ
+                            href={`/profile/orders/${order.id}`}
                             style={{
                                 display: 'flex',
                                 justifyContent: 'space-between',
@@ -180,7 +160,7 @@ export default function OrderHistoryPage() {
                                 backgroundColor: colors.white,
                                 textDecoration: 'none',
                                 color: colors.text,
-                                transition: 'box-shadow 0.2s, transform 0.2s',
+                                transition: 'all 0.2s',
                             }}
                             onMouseOver={e => {
                                 e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
@@ -191,7 +171,6 @@ export default function OrderHistoryPage() {
                                 e.currentTarget.style.transform = 'translateY(0)';
                             }}
                         >
-                            {/* รายละเอียดคำสั่งซื้อ */}
                             <div style={{ flex: 1 }}>
                                 <p style={{ fontWeight: 'bold', margin: '0 0 5px 0', color: colors.primary }}>
                                     รหัสคำสั่งซื้อ: #{order.id.substring(0, 8)} 
@@ -199,9 +178,15 @@ export default function OrderHistoryPage() {
                                 <p style={{ fontSize: '0.9rem', color: colors.gray, margin: 0 }}>
                                     วันที่สั่งซื้อ: {new Date(order.created).toLocaleDateString('th-TH')}
                                 </p>
+                                
+                                {/* แสดงหมายเลขพัสดุในหน้ารายการหลัก (ถ้ามีข้อมูล) */}
+                                {order.tracking_number && (
+                                    <p style={{ fontSize: '0.9rem', color: colors.success, fontWeight: 'bold', marginTop: '8px' }}>
+                                        📦 เลขพัสดุ: {order.tracking_number}
+                                    </p>
+                                )}
                             </div>
                             
-                            {/* สถานะ & ยอดรวม */}
                             <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '5px' }}>
                                 {getStatusBadge(order.status)}
                                 <p style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: '0', color: colors.text }}>

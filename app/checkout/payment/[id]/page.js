@@ -30,13 +30,12 @@ export default function PaymentPage() {
 
         const fetchOrder = async () => {
             try {
-                // ✅ ใช้ requestKey: null เพื่อให้แน่ใจว่าคำขอจะไม่ถูกยกเลิก
                 const record = await pb.collection('orders').getOne(id, {
                     requestKey: null
                 });
                 setOrder(record);
             } catch (error) {
-                if (error.isAbort) return; // ข้ามถ้าเป็นการยกเลิกปกติ
+                if (error.isAbort) return;
                 console.error('Error fetching order:', error);
                 alert('ไม่พบข้อมูลคำสั่งซื้อ');
             }
@@ -46,6 +45,33 @@ export default function PaymentPage() {
             fetchOrder();
         }
     }, [id]);
+
+    // ✅ ฟังก์ชันคัดลอกที่รองรับทั้ง HTTPS และ HTTP/IP Address (แก้ Error writeText)
+    const handleCopy = (text) => {
+        if (navigator.clipboard && window.isSecureContext) {
+            // วิธีมาตรฐานสำหรับ HTTPS
+            navigator.clipboard.writeText(text);
+            alert('คัดลอกเลขบัญชีแล้ว');
+        } else {
+            // วิธีสำรอง (Fallback) สำหรับ HTTP หรือการเข้าผ่าน IP
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert('คัดลอกเลขบัญชีแล้ว');
+            } catch (err) {
+                console.error('ไม่สามารถคัดลอกได้', err);
+                alert('ไม่สามารถคัดลอกอัตโนมัติได้ กรุณาจดเลขบัญชีแทน');
+            }
+            document.body.removeChild(textArea);
+        }
+    };
 
     const handleFileChange = (e) => {
         const selectedFile = e.target.files[0];
@@ -60,17 +86,15 @@ export default function PaymentPage() {
         
         setLoading(true);
         try {
-            // ✅ ปิด Auto-cancellation ก่อนส่งข้อมูล
             pb.autoCancellation(false);
-
             const formData = new FormData();
-            formData.append('slip', file); // 'slip' ต้องตรงกับชื่อ field ใน PocketBase
-            formData.append('status', 'pending'); // ตั้งสถานะเป็นรอตรวจสอบ
+            formData.append('slip', file);
+            formData.append('status', 'pending');
 
             await pb.collection('orders').update(id, formData);
             
-            alert('ส่งหลักฐานการโอนเงินเรียบร้อยแล้ว! ขอบคุณที่อุดหนุนครับ');
-            router.push('/profile/orders'); // ไปหน้าประวัติการสั่งซื้อ
+            alert('ส่งหลักฐานการโอนเงินเรียบร้อยแล้ว!');
+            router.push('/profile/orders');
         } catch (error) {
             console.error('Upload error:', error);
             alert('เกิดข้อผิดพลาดในการอัปโหลด: ' + error.message);
@@ -79,7 +103,7 @@ export default function PaymentPage() {
         }
     };
 
-    if (!order) return <div style={{textAlign:'center', padding:'100px', fontFamily: "'Kanit', sans-serif"}}>กำลังเตรียมข้อมูลการชำระเงิน...</div>;
+    if (!order) return <div style={{textAlign:'center', padding:'100px'}}>กำลังเตรียมข้อมูล...</div>;
 
     return (
         <div style={styles.container}>
@@ -110,8 +134,9 @@ export default function PaymentPage() {
                         <p style={{margin: '5px 0'}}><strong>ชื่อบัญชี:</strong> ร้านบ้านจอย (Baan Joy)</p>
                         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', backgroundColor: 'white', padding: '10px', borderRadius: '8px', marginTop: '10px', border: '1px solid #bbf7d0'}}>
                             <span style={{fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '1px'}}>123-4-56789-0</span>
+                            {/* ✅ เรียกใช้ฟังก์ชัน handleCopy แทนการเรียก navigator โดยตรง */}
                             <button 
-                                onClick={() => {navigator.clipboard.writeText('1234567890'); alert('คัดลอกเลขบัญชีแล้ว')}} 
+                                onClick={() => handleCopy('1234567890')} 
                                 style={{border:'none', background:'#10b981', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor:'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '5px'}}
                             >
                                 <FiCopy /> คัดลอก
@@ -124,21 +149,13 @@ export default function PaymentPage() {
                     <label style={{fontWeight:'bold', color: '#334155', display: 'flex', alignItems: 'center', gap: '5px'}}>
                         <FiUpload /> แนบสลิปการโอนเงิน
                     </label>
-                    <div 
-                        style={{
-                            ...styles.uploadArea,
-                            borderColor: preview ? '#10b981' : '#ddd',
-                            backgroundColor: preview ? '#f0fdf4' : '#fafafa'
-                        }} 
-                        onClick={() => document.getElementById('slip-upload').click()}
-                    >
+                    <div style={styles.uploadArea} onClick={() => document.getElementById('slip-upload').click()}>
                         {preview ? (
                             <img src={preview} style={styles.previewImg} alt="slip preview" />
                         ) : (
                             <div style={{color:'#94a3b8'}}>
                                 <FiUpload size={40} style={{marginBottom: '10px'}} />
                                 <p style={{margin: 0}}>คลิกเพื่ออัปโหลดรูปภาพสลิป</p>
-                                <p style={{fontSize: '0.8rem', marginTop: '5px'}}>(รองรับไฟล์ JPG, PNG)</p>
                             </div>
                         )}
                         <input id="slip-upload" type="file" hidden accept="image/*" onChange={handleFileChange} />
@@ -147,19 +164,11 @@ export default function PaymentPage() {
 
                 <button 
                     onClick={handleUploadSlip} 
-                    style={{
-                        ...styles.btnSubmit, 
-                        backgroundColor: loading ? '#94a3b8' : '#10b981',
-                        cursor: loading ? 'not-allowed' : 'pointer'
-                    }}
+                    style={{...styles.btnSubmit, opacity: loading ? 0.7 : 1}}
                     disabled={loading}
                 >
                     {loading ? 'กำลังส่งหลักฐาน...' : 'ยืนยันการแจ้งโอนเงิน'}
                 </button>
-                
-                <p style={{fontSize: '0.85rem', color: '#94a3b8', marginTop: '15px'}}>
-                    หลังจากส่งสลิปแล้ว รอการตรวจสอบจากทางร้านประมาณ 1-2 วันทำการ
-                </p>
             </div>
         </div>
     );

@@ -85,7 +85,7 @@ export default function CartPage() {
     const handleCheckout = async () => {
         if (!user) {
             alert('กรุณาเข้าสู่ระบบก่อนชำระเงิน');
-            router.push('/login'); 
+            router.push('/signin'); 
             return;
         }
 

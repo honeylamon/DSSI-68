@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import pb from '../lib/pocketbase';
-import TrainButton from '@/app/components/TrainButton';
+import { FiAlertCircle, FiShoppingBag, FiArrowRight, FiBox, FiClock, FiDollarSign } from 'react-icons/fi';
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -14,6 +14,10 @@ export default function AdminDashboard() {
         totalOrders: 0,
         totalProducts: 0
     });
+    
+    // ✅ เพิ่ม State สำหรับข้อมูลใหม่
+    const [recentOrders, setRecentOrders] = useState([]);
+    const [lowStockProducts, setLowStockProducts] = useState([]);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -23,31 +27,52 @@ export default function AdminDashboard() {
                 router.push('/');
             } else {
                 setIsAuthorized(true);
-                // ดึงข้อมูลตัวอย่าง (หรือเชื่อมต่อจริงถ้ามี)
-                try {
-                    const productList = await pb.collection('products').getList(1, 1);
-                    setStats({
-                        totalSales: 15400,
-                        totalOrders: 25,
-                        totalProducts: productList.totalItems
-                    });
-                } catch (e) {
-                    console.log("Error fetching stats", e);
-                }
+                fetchDashboardData();
             }
         };
         checkAuth();
     }, [router]);
 
+    const fetchDashboardData = async () => {
+        try {
+            // 1. ดึงสถิติพื้นฐาน
+            const productList = await pb.collection('products').getList(1, 1);
+            const orderList = await pb.collection('orders').getList(1, 1);
+            
+            // หมายเหตุ: ตรง totalSales สามารถปรับ query ให้คำนวณจากยอดรวมจริงใน orders ได้
+            setStats({
+                totalSales: 15400, // ข้อมูลตัวอย่างเดิม
+                totalOrders: orderList.totalItems,
+                totalProducts: productList.totalItems
+            });
+
+            // ✅ 2. ดึงสินค้าที่สต็อกใกล้หมด (เหลือ < 5) เพื่อป้องกันเลขสต็อกติดลบ
+            const lowStock = await pb.collection('products').getList(1, 5, {
+                filter: 'stock < 5',
+                sort: 'stock'
+            });
+            setLowStockProducts(lowStock.items);
+
+            // ✅ 3. ดึงออเดอร์ล่าสุด 5 รายการ
+            const recent = await pb.collection('orders').getList(1, 5, {
+                sort: '-created',
+            });
+            setRecentOrders(recent.items);
+
+        } catch (e) {
+            console.log("Error fetching dashboard data", e);
+        }
+    };
+
     if (!isAuthorized) return null;
 
-    // --- ชุดสี (Color Palette) ---
     const colors = {
-        darkGreen: '#1A4D2E',  // เขียวเข้ม
-        skyBlue: '#4FC3F7',    // ฟ้าสดใส
-        lightPink: '#FFF0F3',  // ชมพูอ่อน (พื้นหลัง)
-        hotPink: '#FF80AB',    // ชมพูเข้ม (สำหรับไอคอน)
-        white: '#FFFFFF'       // ขาว
+        darkGreen: '#1A4D2E',
+        skyBlue: '#4FC3F7',
+        lightPink: '#FFF0F3',
+        hotPink: '#FF80AB',
+        orange: '#f59e0b',
+        white: '#FFFFFF'
     };
 
     return (
@@ -62,8 +87,6 @@ export default function AdminDashboard() {
 
                 {/* 1. ส่วนแสดงสถิติ (Stats Cards) */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '25px', marginBottom: '40px' }}>
-                    
-                    {/* การ์ด 1: ยอดขาย (ธีมเขียว) */}
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
@@ -74,7 +97,6 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* การ์ด 2: ออเดอร์ (ธีมฟ้า) */}
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
@@ -85,7 +107,6 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    {/* การ์ด 3: สินค้า (ธีมชมพู) */}
                     <div style={cardStyle}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
@@ -97,14 +118,80 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
+                {/* ✅ ส่วนใหม่: คำสั่งซื้อล่าสุด & แจ้งเตือนสต็อก */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px', marginBottom: '40px' }}>
+                    
+                    {/* รายการสั่งซื้อล่าสุด */}
+                    <div style={cardStyle}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                            <h2 style={{ color: colors.darkGreen, margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <FiClock /> คำสั่งซื้อล่าสุด
+                            </h2>
+                            <Link href="/admin/orders" style={{ color: colors.skyBlue, textDecoration: 'none', fontSize: '0.9rem' }}>ดูทั้งหมด</Link>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
+                                        <th style={tableThStyle}>ลูกค้า</th>
+                                        <th style={tableThStyle}>ยอดเงิน</th>
+                                        <th style={tableThStyle}>สถานะ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentOrders.map(order => (
+                                        <tr key={order.id} style={{ borderBottom: '1px solid #f9f9f9' }}>
+                                            <td style={tableTdStyle}>{order.customerName || 'ไม่ระบุชื่อ'}</td>
+                                            <td style={tableTdStyle}>฿{order.total_price?.toLocaleString()}</td>
+                                            <td style={tableTdStyle}>
+                                                <span style={{ 
+                                                    padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem',
+                                                    backgroundColor: order.status === 'pending' ? '#fff3e0' : '#e8f5e9',
+                                                    color: order.status === 'pending' ? '#ef6c00' : '#2e7d32'
+                                                }}>
+                                                    {order.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {recentOrders.length === 0 && (
+                                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '20px', color: '#999' }}>ไม่มีคำสั่งซื้อใหม่</td></tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* แจ้งเตือนสต็อกใกล้หมด */}
+                    <div style={{ ...cardStyle, border: `1px solid ${colors.hotPink}` }}>
+                        <h2 style={{ color: colors.hotPink, margin: '0 0 20px 0', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <FiAlertCircle /> สต็อกใกล้หมด
+                        </h2>
+                        {lowStockProducts.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                {lowStockProducts.map(item => (
+                                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid #fff0f3' }}>
+                                        <span style={{ fontSize: '0.95rem' }}>{item.name}</span>
+                                        <span style={{ fontWeight: 'bold', color: item.stock <= 0 ? '#ef4444' : colors.orange }}>
+                                            {item.stock} ชิ้น
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p style={{ color: '#999', textAlign: 'center' }}>สินค้าในสต็อกเพียงพอ</p>
+                        )}
+                        <Link href="/admin/products" style={{ display: 'block', textAlign: 'center', marginTop: '20px', color: colors.hotPink, fontSize: '0.85rem' }}>ไปจัดการสต็อก</Link>
+                    </div>
+
+                </div>
+
                 {/* 2. เมนูจัดการ (Action Cards) */}
                 <h2 style={{ color: colors.darkGreen, marginBottom: '20px', borderLeft: `5px solid ${colors.darkGreen}`, paddingLeft: '15px' }}>
                     เมนูจัดการ
                 </h2>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-                    
-                    {/* ปุ่มไปจัดการสินค้า */}
                     <Link href="/admin/products" style={actionCardStyle}>
                         <div style={{ ...iconStyle, backgroundColor: '#E8F5E9', color: colors.darkGreen, marginRight: '20px' }}>
                             📦
@@ -116,7 +203,6 @@ export default function AdminDashboard() {
                         <div style={{ marginLeft: 'auto', fontSize: '1.5rem', color: colors.skyBlue }}>➔</div>
                     </Link>
 
-                    {/* ปุ่มไปจัดการออเดอร์ */}
                     <Link href="/admin/orders" style={actionCardStyle}>
                         <div style={{ ...iconStyle, backgroundColor: '#E1F5FE', color: '#0288D1', marginRight: '20px' }}>
                             📃
@@ -127,10 +213,7 @@ export default function AdminDashboard() {
                         </div>
                         <div style={{ marginLeft: 'auto', fontSize: '1.5rem', color: colors.skyBlue }}>➔</div>
                     </Link>
-
                 </div>
-
-               
             </div>
         </div>
     );
@@ -167,3 +250,6 @@ const iconStyle = {
     justifyContent: 'center',
     fontSize: '24px'
 };
+
+const tableThStyle = { padding: '12px 8px', fontSize: '0.85rem', color: '#888', fontWeight: '500' };
+const tableTdStyle = { padding: '12px 8px', fontSize: '0.9rem', color: '#333' };

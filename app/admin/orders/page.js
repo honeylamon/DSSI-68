@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation'; // ✅ เพิ่มสำหรับการเปลี่ยนหน้า
-import { useAuth } from '@/app/contexts/AuthContext'; // ✅ ใช้ระบบ Auth ของคุณ
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/app/contexts/AuthContext';
 import pb from '../../lib/pocketbase'; 
 import { 
     FiHome, FiRefreshCw, FiEye, FiCheck, FiX, FiFileText, 
     FiPackage, FiUser, FiMapPin, FiTruck, FiCreditCard 
 } from 'react-icons/fi';
 
-// ปิดการยกเลิก Request อัตโนมัติเพื่อความเสถียร
 pb.autoCancellation(false);
 
 const colors = { 
@@ -24,7 +23,7 @@ const colors = {
 };
 
 export default function AdminOrdersPage() {
-    const { user, isLoading: isAuthLoading } = useAuth(); // ✅ ดึงข้อมูลผู้ใช้และสถานะการโหลด
+    const { user, isLoading: isAuthLoading } = useAuth();
     const router = useRouter();
 
     const [orders, setOrders] = useState([]);
@@ -32,16 +31,11 @@ export default function AdminOrdersPage() {
     const [selectedOrder, setSelectedOrder] = useState(null); 
     const [trackingInputs, setTrackingInputs] = useState({});
 
-    // ✅ ระบบตรวจสอบสิทธิ์ (Admin Check)
     useEffect(() => {
         if (!isAuthLoading) {
-            // 1. ถ้าไม่ได้ล็อกอิน ให้ไปหน้า Signin
             if (!user) {
                 router.push('/signin');
-            } 
-            // 2. ถ้าล็อกอินแล้ว แต่ไม่ใช่ Admin ให้ดีดกลับหน้าหลัก
-            // (ตรวจสอบจากฟิลด์ role หรือ isAdmin ตามที่คุณตั้งค่าใน PocketBase)
-            else if (user.role !== 'admin' && !user.isAdmin) {
+            } else if (user.role !== 'admin' && !user.isAdmin) {
                 alert("ขออภัย คุณไม่มีสิทธิ์เข้าถึงหน้านี้");
                 router.push('/');
             }
@@ -51,7 +45,6 @@ export default function AdminOrdersPage() {
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            // ดึงข้อมูลออเดอร์ทั้งหมด เรียงจากใหม่ไปเก่า
             const records = await pb.collection('orders').getFullList({ 
                 sort: '-created', 
                 expand: 'user' 
@@ -82,12 +75,18 @@ export default function AdminOrdersPage() {
 
         try {
             const data = { status: newStatus };
-            if (trackingNum) data.tracking = trackingNum;
+            
+            // ✅ แก้ไขจาก data.tracking = tracking เป็น trackingNum
+            if (trackingNum) {
+                data.tracking = trackingNum; 
+            }
 
             await pb.collection('orders').update(orderId, data);
+            
+            // อัปเดตสถานะในหน้าจอทันที
             setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...data } : o));
             setSelectedOrder(null); 
-            alert("ดำเนินการสำเร็จ");
+            alert("ดำเนินการสำเร็จและบันทึกเลขพัสดุแล้ว");
         } catch (error) { 
             alert("เกิดข้อผิดพลาด: " + error.message); 
         }
@@ -100,14 +99,13 @@ export default function AdminOrdersPage() {
         return { items, itemsTotal, shipping };
     };
 
-    // ✅ ขณะโหลดสถานะล็อกอิน ให้แสดงข้อความรอ
     if (isAuthLoading || !user) {
         return <div style={{ textAlign: 'center', padding: '100px', fontSize: '1.2rem' }}>กำลังตรวจสอบสิทธิ์...</div>;
     }
 
     return (
         <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto', fontFamily: "'Kanit', sans-serif", backgroundColor: colors.bg, minHeight: '100vh' }}>
-            {/* ส่วนหัวหน้าจัดการ */}
+            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', backgroundColor: 'white', padding: '15px 25px', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <span style={{ fontSize: '1.5rem', fontWeight: '800', color: colors.darkGreen }}>Baan Joy</span>
@@ -127,7 +125,6 @@ export default function AdminOrdersPage() {
                 </button>
             </div>
 
-            {/* ตารางแสดงรายการ */}
             <div style={{ backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead style={{ backgroundColor: '#f9fafb' }}>
@@ -170,7 +167,6 @@ export default function AdminOrdersPage() {
                 </table>
             </div>
 
-            {/* Modal แสดงรายละเอียดคำสั่งซื้อ */}
             {selectedOrder && (
                 <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
                     <div style={{ backgroundColor: 'white', borderRadius: '20px', width: '100%', maxWidth: '900px', maxHeight: '90vh', overflowY: 'auto', padding: '30px', position: 'relative' }}>
@@ -179,7 +175,6 @@ export default function AdminOrdersPage() {
                         <h2 style={{ marginBottom: '20px', color: colors.darkGreen }}>รายละเอียดออเดอร์ #{selectedOrder.id}</h2>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-                            {/* ข้อมูลสินค้าและที่อยู่ */}
                             <div>
                                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}><FiPackage /> รายการสินค้า</h4>
                                 <div style={{ border: '1px solid #eee', borderRadius: '10px', padding: '15px', marginBottom: '20px' }}>
@@ -201,16 +196,15 @@ export default function AdminOrdersPage() {
                                     <p><strong>ชื่อผู้รับ:</strong> {selectedOrder.customerName}</p>
                                     <p><strong>เบอร์โทรศัพท์:</strong> {selectedOrder.phone}</p>
                                     <p><strong>ที่อยู่:</strong> {selectedOrder.address}</p>
-                                    <p><strong>รูปแบบ:</strong> {selectedOrder.deliveryType === 'delivery' ? '🚚 ส่งตามที่อยู่' : '🏪 รับที่ร้าน'}</p>
+                                    <p><strong>เลขพัสดุเดิม:</strong> {selectedOrder.tracking || '-'}</p>
                                 </div>
                             </div>
 
-                            {/* หลักฐานการโอนและการจัดการสถานะ */}
                             <div style={{ textAlign: 'center' }}>
                                 <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', justifyContent: 'center' }}><FiCreditCard /> หลักฐานการโอนเงิน</h4>
                                 {selectedOrder.slip ? (
-                                    <a href={pb.files.getUrl(selectedOrder, selectedOrder.slip)} target="_blank" rel="noreferrer">
-                                        <img src={pb.files.getUrl(selectedOrder, selectedOrder.slip)} style={{ width: '100%', maxHeight: '350px', objectFit: 'contain', borderRadius: '10px', border: '1px solid #eee' }} alt="slip" />
+                                    <a href={pb.files.getURL(selectedOrder, selectedOrder.slip)} target="_blank" rel="noreferrer">
+                                        <img src={pb.files.getURL(selectedOrder, selectedOrder.slip)} style={{ width: '100%', maxHeight: '350px', objectFit: 'contain', borderRadius: '10px', border: '1px solid #eee' }} alt="slip" />
                                     </a>
                                 ) : <div style={{ height: '200px', backgroundColor: '#eee', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>ยังไม่ได้แนบสลิป</div>}
 
@@ -221,19 +215,20 @@ export default function AdminOrdersPage() {
                                             <button onClick={() => updateStatus(selectedOrder.id, 'rejected')} style={{ flex: 1, padding: '12px', backgroundColor: colors.red, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>สลิปไม่ถูกต้อง</button>
                                         </div>
                                     )}
-                                    {selectedOrder.status === 'paid' && (
+                                    {(selectedOrder.status === 'paid' || selectedOrder.status === 'shipped') && (
                                         <div style={{ backgroundColor: '#fff7ed', padding: '15px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
                                             <input 
                                                 type="text" 
                                                 placeholder="กรอกหมายเลขพัสดุ..." 
+                                                defaultValue={selectedOrder.tracking || ""}
                                                 style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '6px', border: '1px solid #ddd' }}
                                                 onChange={(e) => handleTrackingChange(selectedOrder.id, e.target.value)}
                                             />
                                             <button 
-                                                onClick={() => updateStatus(selectedOrder.id, 'shipped', trackingInputs[selectedOrder.id])}
+                                                onClick={() => updateStatus(selectedOrder.id, 'shipped', trackingInputs[selectedOrder.id] || selectedOrder.tracking)}
                                                 style={{ width: '100%', padding: '12px', backgroundColor: colors.darkGreen, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
                                             >
-                                                ยืนยันการจัดส่งสินค้า
+                                                {selectedOrder.status === 'shipped' ? 'อัปเดตเลขพัสดุ' : 'ยืนยันการจัดส่งสินค้า'}
                                             </button>
                                         </div>
                                     )}

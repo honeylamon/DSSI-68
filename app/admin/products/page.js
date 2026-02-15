@@ -3,11 +3,16 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation'; // ✅ นำเข้า useRouter สำหรับการ Redirect
 import pb from '../../lib/pocketbase'; 
+import { useAuth } from '@/app/contexts/AuthContext'; // ✅ ใช้ AuthContext ที่คุณมีอยู่
 import CreateProductForm from './CreateProductForm';
-import { FiPlus, FiX, FiRefreshCw, FiEdit, FiTrash2, FiHome, FiBox, FiSave, FiAlertCircle } from 'react-icons/fi';
+import { 
+    FiPlus, FiX, FiRefreshCw, FiEdit, FiTrash2, 
+    FiHome, FiBox, FiSave, FiAlertCircle, FiLock 
+} from 'react-icons/fi';
 
-// ✅ ปรับตัวเลือกโปรโมชั่นให้ตรงกับค่าในระบบ (Value) และแสดงผลเป็นภาษาไทย (Label)
+// ... (PROMO_OPTIONS และ pageStyles คงเดิมเหมือนเวอร์ชันก่อน) ...
 const PROMO_OPTIONS = [
     { label: 'ไม่มีโปรโมชั่น', value: 'none' },
     { label: 'ลด 50%', value: 'discount' },
@@ -16,13 +21,12 @@ const PROMO_OPTIONS = [
     { label: 'โปรโมชั่น', value: 'Promotion' }
 ];
 
-// ✅ ฟังก์ชันช่วยแปลงค่า Value เป็น Label ภาษาไทยเพื่อแสดงในตาราง
 const getPromoLabel = (value) => {
     const option = PROMO_OPTIONS.find(opt => opt.value === value);
     return option ? option.label : (value || '-');
 };
 
-const colors = { darkGreen: '#1A4D2E', orange: '#f59e0b', red: '#ef4444', gray: '#6b7280', border: '#e5e7eb' };
+const colors = { darkGreen: '#1A4D2E', orange: '#f59e0b', red: '#ef4444', gray: '#6b7280', border: '#e5e7eb', text: '#374151' };
 
 const pageStyles = {
     dashboardContainer: { padding: '30px', maxWidth: '1200px', margin: '0 auto', fontFamily: "'Kanit', sans-serif", backgroundColor: '#f8f9fa', minHeight: '100vh' },
@@ -58,22 +62,34 @@ const pageStyles = {
 };
 
 export default function AdminProductsPage() {
+    const { user, isLoading: authLoading } = useAuth(); // ✅ ดึงข้อมูล User จาก Context
+    const router = useRouter();
+    
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
-    const [errorMsg, setErrorMsg] = useState('');
-
+    
     const [showUpdateForm, setShowUpdateForm] = useState(false);
     const [currentProduct, setCurrentProduct] = useState(null);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [updateFormData, setUpdateFormData] = useState({ name: '', price: '', relation: '', promoType: '' }); // ✅ เปลี่ยน category เป็น relation
+    const [updateFormData, setUpdateFormData] = useState({ name: '', price: '', relation: '', promoType: '', stock: 0 });
+
+    // 🛡️ ส่วนการตรวจสอบสิทธิ์ (Security Guard)
+    useEffect(() => {
+        if (!authLoading) {
+            // หากไม่ได้ล็อกอิน หรือ มีล็อกอินแต่ role ไม่ใช่ admin
+            if (!user || user.role !== 'admin') {
+                console.warn("Unauthorized access attempt redirected.");
+                router.push('/'); // ดีดกลับหน้าแรก
+            }
+        }
+    }, [user, authLoading, router]);
 
     const fetchAllData = async () => {
+        // ... (โค้ดดึงข้อมูลเหมือนเดิม) ...
         setIsLoading(true);
-        setErrorMsg('');
         try {
-            // 1. ดึงสินค้าและขยายข้อมูลหมวดหมู่ผ่านฟิลด์ 'relation'
             const productRecords = await pb.collection('products').getFullList({
                 sort: '-created',
                 expand: 'relation', 
@@ -81,20 +97,32 @@ export default function AdminProductsPage() {
             });
             setProducts(productRecords);
 
-            // 2. ดึงหมวดหมู่
             const categoryRecords = await pb.collection('categories').getFullList({ requestKey: null });
             setCategories(categoryRecords);
-
         } catch (error) {
             console.error("Error fetching data:", error);
-            setErrorMsg("⚠️ เกิดข้อผิดพลาดในการดึงข้อมูล");
         } finally {
             setIsLoading(false);
         }
     };
 
-    useEffect(() => { fetchAllData(); }, []);
+    useEffect(() => {
+        if (user && user.role === 'admin') {
+            fetchAllData();
+        }
+    }, [user]);
 
+    // แสดงหน้า Loading ขณะกำลังเช็คสิทธิ์
+    if (authLoading || (!user || user.role !== 'admin')) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: "'Kanit', sans-serif", color: colors.darkGreen }}>
+                <FiLock size={50} style={{ marginBottom: '20px' }} />
+                <h2>กำลังตรวจสอบสิทธิ์การเข้าถึง...</h2>
+            </div>
+        );
+    }
+
+    // ... (ส่วนการจัดการ Delete / Update / Render JSX เหมือนเดิมที่คุณมี) ...
     const handleDelete = async (id) => {
         if (!confirm('ยืนยันการลบสินค้า?')) return;
         try {
@@ -108,8 +136,9 @@ export default function AdminProductsPage() {
         setUpdateFormData({
             name: product.name,
             price: product.price,
-            relation: product.relation, // ✅ ใช้ชื่อฟิลด์ relation
-            promoType: product.promoType || 'none'
+            relation: product.relation,
+            promoType: product.promoType || 'none',
+            stock: product.stock || 0 
         });
         setShowUpdateForm(true);
     };
@@ -118,12 +147,12 @@ export default function AdminProductsPage() {
         e.preventDefault();
         setIsUpdating(true);
         try {
-            // ✅ ส่งเฉพาะฟิลด์ที่มีในฐานข้อมูลจริงเพื่อป้องกัน Error
             const dataToSend = { 
                 name: updateFormData.name,
                 price: parseInt(updateFormData.price) || 0,
                 relation: updateFormData.relation, 
-                promoType: updateFormData.promoType
+                promoType: updateFormData.promoType,
+                stock: parseInt(updateFormData.stock) || 0 
             };
 
             await pb.collection('products').update(currentProduct.id, dataToSend);
@@ -131,8 +160,8 @@ export default function AdminProductsPage() {
             setShowUpdateForm(false);
             fetchAllData(); 
         } catch (error) {
-            console.error("Update Error Details:", error.data); 
-            alert('บันทึกไม่สำเร็จ: กรุณาเช็คชื่อฟิลด์และ API Rules ใน PocketBase');
+            console.error("Update Error:", error); 
+            alert('บันทึกไม่สำเร็จ: กรุณาเช็ค API Rules');
         } finally {
             setIsUpdating(false);
         }
@@ -140,27 +169,30 @@ export default function AdminProductsPage() {
 
     return (
         <div style={pageStyles.dashboardContainer}>
+            {/* ส่วนหัว */}
             <div style={pageStyles.topBar}>
                 <div style={pageStyles.brand}><span style={pageStyles.logoText}>Baan Joy</span><span style={pageStyles.subText}>Seller Centre</span></div>
                 <Link href="/" style={pageStyles.navLink}><FiHome size={18} /> กลับหน้าหลัก</Link>
             </div>
 
-            {errorMsg && <div style={{ color: 'red', marginBottom: '20px' }}>{errorMsg}</div>}
-
             <div style={pageStyles.actionHeader}>
                 <h1 style={pageStyles.pageTitle}><FiBox color={colors.darkGreen} size={28} /> จัดการสินค้า</h1>
                 <div style={pageStyles.btnGroup}>
-                    <button onClick={() => setShowCreateForm(!showCreateForm)} style={{...pageStyles.btnBase, ...(showCreateForm ? pageStyles.btnClose : pageStyles.btnAdd)}}>{showCreateForm ? <><FiX size={20} /> ปิดฟอร์ม</> : <><FiPlus size={20} /> เพิ่มสินค้า</>}</button>
+                    <button onClick={() => setShowCreateForm(!showCreateForm)} style={{...pageStyles.btnBase, ...(showCreateForm ? pageStyles.btnClose : pageStyles.btnAdd)}}>
+                        {showCreateForm ? <><FiX size={20} /> ปิดฟอร์ม</> : <><FiPlus size={20} /> เพิ่มสินค้า</>}
+                    </button>
                     <button onClick={fetchAllData} style={{...pageStyles.btnBase, ...pageStyles.btnRefresh}} title="รีเฟรชข้อมูล"><FiRefreshCw size={20} /></button>
                 </div>
             </div>
 
+            {/* ฟอร์มเพิ่มสินค้า */}
             {showCreateForm && (
                 <div style={{ marginBottom: '30px', padding: '25px', backgroundColor: 'white', borderRadius: '16px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
                     <CreateProductForm onProductCreated={fetchAllData} onClose={() => setShowCreateForm(false)} />
                 </div>
             )}
 
+            {/* ตารางสินค้า */}
             {isLoading ? (<div style={{ textAlign: 'center', padding: '60px', color: '#9ca3af' }}>กำลังโหลดข้อมูล...</div>) : (
                 <div style={pageStyles.tableCard}>
                     <div style={pageStyles.tableWrapper}>
@@ -171,6 +203,7 @@ export default function AdminProductsPage() {
                                     <th style={pageStyles.th}>ชื่อสินค้า</th>
                                     <th style={pageStyles.th}>หมวดหมู่</th>
                                     <th style={pageStyles.th}>โปรโมชั่น</th>
+                                    <th style={pageStyles.th}>สต็อก</th>
                                     <th style={pageStyles.th}>ราคา</th>
                                     <th style={{...pageStyles.th, textAlign:'right'}}>จัดการ</th>
                                 </tr>
@@ -178,22 +211,22 @@ export default function AdminProductsPage() {
                             <tbody>
                                 {products.map((product) => (
                                     <tr key={product.id}>
-                                        {/* ✅ แก้ไขให้ดึงรูปจากฟิลด์ 'picture' ตามฐานข้อมูลจริง */}
                                         <td style={pageStyles.td}>
                                             <div style={pageStyles.imgWrapper}>
                                                 {product.picture ? (
-                                                    <Image src={pb.files.getUrl(product, product.picture)} alt={product.name} fill style={{ objectFit: 'cover' }} />
+                                                    <Image src={pb.files.getURL(product, product.picture)} alt={product.name} fill style={{ objectFit: 'cover' }} />
                                                 ) : <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', color:'#ccc'}}><FiBox /></div>}
                                             </div>
                                         </td>
                                         <td style={{...pageStyles.td, fontWeight:'600'}}>{product.name}</td>
-                                        {/* ✅ ดึงชื่อหมวดหมู่ผ่าน expand.relation */}
                                         <td style={pageStyles.td}><span style={pageStyles.badgeCategory}>{product.expand?.relation?.name || '-'}</span></td>
-                                        {/* ✅ แสดง Label ภาษาไทยแทนชื่อภาษาอังกฤษ */}
                                         <td style={pageStyles.td}>
                                             {product.promoType && product.promoType !== 'none' ? (
                                                 <span style={pageStyles.badgePromo}>{getPromoLabel(product.promoType)}</span>
                                             ) : '-'}
+                                        </td>
+                                        <td style={{...pageStyles.td, fontWeight:'bold', color: (product.stock <= 0 ? colors.red : colors.text)}}>
+                                            {product.stock || 0} ชิ้น
                                         </td>
                                         <td style={{...pageStyles.td, fontWeight:'700', color: colors.darkGreen}}>฿{product.price.toLocaleString()}</td>
                                         <td style={pageStyles.td}>
@@ -210,6 +243,7 @@ export default function AdminProductsPage() {
                 </div>
             )}
 
+            {/* Modal แก้ไขสินค้า */}
             {showUpdateForm && (
                 <div style={pageStyles.overlay}>
                     <div style={pageStyles.modal}>
@@ -218,25 +252,24 @@ export default function AdminProductsPage() {
                             <div style={{marginBottom:'15px'}}><label style={pageStyles.formLabel}>ชื่อสินค้า</label><input type="text" value={updateFormData.name} onChange={e => setUpdateFormData({...updateFormData, name: e.target.value})} style={pageStyles.formInput} required /></div>
                             
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom:'15px' }}>
-                                <div><label style={pageStyles.formLabel}>ราคา</label><input type="number" value={updateFormData.price} onChange={e => setUpdateFormData({...updateFormData, price: e.target.value})} style={pageStyles.formInput} required /></div>
+                                <div><label style={pageStyles.formLabel}>ราคา (บาท)</label><input type="number" value={updateFormData.price} onChange={e => setUpdateFormData({...updateFormData, price: e.target.value})} style={pageStyles.formInput} required /></div>
+                                <div><label style={pageStyles.formLabel}>จำนวนสต็อก (ชิ้น)</label><input type="number" value={updateFormData.stock} onChange={e => setUpdateFormData({...updateFormData, stock: e.target.value})} style={pageStyles.formInput} required /></div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom:'20px' }}>
                                 <div>
                                     <label style={pageStyles.formLabel}>หมวดหมู่</label>
-                                    <select 
-                                        value={updateFormData.relation} 
-                                        onChange={e => setUpdateFormData({...updateFormData, relation: e.target.value})} 
-                                        style={{...pageStyles.formInput, cursor: 'pointer', backgroundColor: 'white'}}
-                                        required
-                                    >
+                                    <select value={updateFormData.relation} onChange={e => setUpdateFormData({...updateFormData, relation: e.target.value})} style={{...pageStyles.formInput, cursor: 'pointer', backgroundColor: 'white'}} required>
                                         <option value="" disabled>-- เลือกหมวดหมู่ --</option>
                                         {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
                                     </select>
                                 </div>
-                            </div>
-
-                            <div style={{marginBottom:'20px'}}><label style={pageStyles.formLabel}>โปรโมชั่น</label>
-                                <select value={updateFormData.promoType} onChange={e => setUpdateFormData({...updateFormData, promoType: e.target.value})} style={{...pageStyles.formInput, cursor: 'pointer', backgroundColor: 'white'}}>
-                                    {PROMO_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
-                                </select>
+                                <div>
+                                    <label style={pageStyles.formLabel}>โปรโมชั่น</label>
+                                    <select value={updateFormData.promoType} onChange={e => setUpdateFormData({...updateFormData, promoType: e.target.value})} style={{...pageStyles.formInput, cursor: 'pointer', backgroundColor: 'white'}}>
+                                        {PROMO_OPTIONS.map((option) => (<option key={option.value} value={option.value}>{option.label}</option>))}
+                                    </select>
+                                </div>
                             </div>
 
                             <div style={{ display: 'flex', gap: '10px' }}>

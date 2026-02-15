@@ -6,10 +6,17 @@ import pb from '@/app/lib/pocketbase';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react'; 
-import { FiTrash2, FiMinus, FiPlus, FiMapPin, FiTruck, FiShoppingBag, FiPhone, FiNavigation } from 'react-icons/fi';
-
-// ✅ กำหนด URL ของ PocketBase (ใช้ตามที่คุณตั้งไว้)
-const POCKETBASE_URL = 'http://192.168.1.62:8090'; 
+import { 
+    FiTrash2, 
+    FiMinus, 
+    FiPlus, 
+    FiMapPin, 
+    FiTruck, 
+    FiShoppingBag, 
+    FiPhone, 
+    FiCreditCard,
+    FiShoppingCart
+} from 'react-icons/fi';
 
 // --- Styles ---
 const styles = {
@@ -19,7 +26,7 @@ const styles = {
     emptyCart: { textAlign: 'center', padding: '50px', color: '#666' },
     itemRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #eee', paddingBottom: '15px', marginBottom: '15px' },
     itemInfo: { display: 'flex', alignItems: 'center', gap: '15px' },
-    itemImg: { width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', backgroundColor: '#f9f9f9' },
+    itemImg: { width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', backgroundColor: '#f9f9f9', position: 'relative' },
     itemName: { fontSize: '1.1rem', fontWeight: '600', color: '#333' },
     itemPrice: { color: '#10b981', fontWeight: 'bold' },
     qtyControl: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#f3f4f6', padding: '5px 10px', borderRadius: '8px' },
@@ -110,6 +117,9 @@ export default function CartPage() {
         if (!confirmOrder) return;
 
         try {
+            // ปิดระบบ Auto Cancellation ชั่วคราวเพื่อให้ทำงานต่อเนื่องได้
+            pb.autoCancellation(false);
+
             const orderData = {
                 user: user.id,
                 total_price: finalTotal, 
@@ -123,15 +133,27 @@ export default function CartPage() {
                     : 'รับสินค้าที่หน้าร้าน (Aunflata 18, 7656 Verdal)'
             };
 
-            // ✅ บันทึกข้อมูลและรับค่า record เพื่อเอา ID ไปใช้ต่อ
+            // 1. สร้าง Order
             const record = await pb.collection('orders').create(orderData);
 
-            if (typeof clearCart === 'function') {
-                clearCart(); 
+            // ✅ 2. ระบบตัดสต็อกอัตโนมัติ (เพิ่มใหม่)
+            // วนลูปสินค้าในตะกร้าเพื่อตัดยอดสต็อกในตาราง products
+            for (const item of cart) {
+                try {
+                    // ใช้โอเปอเรเตอร์ "stock-" เพื่อลดค่าตัวเลขในฐานข้อมูลโดยตรง
+                    await pb.collection('products').update(item.id, {
+                        "stock-": item.quantity 
+                    });
+                } catch (stockError) {
+                    console.error(`ตัดสต็อกสินค้า ${item.name} ไม่สำเร็จ:`, stockError);
+                }
             }
 
-            // ✅ เปลี่ยนจุดนี้: ให้เด้งไปหน้าแจ้งโอนเงินพร้อม ID ของออเดอร์นั้นๆ
-            router.push(`/checkout/payment/${record.id}`); 
+            if (typeof clearCart === 'function') {
+                clearCart();
+            }
+
+            router.push(`/checkout/payment/${record.id}`);
 
         } catch (error) {
             console.error('Error creating order:', error);
@@ -155,15 +177,16 @@ export default function CartPage() {
 
     return (
         <div style={styles.container}>
-            <h1 style={styles.title}>🛒 ตะกร้าสินค้าของฉัน</h1>
+            <h1 style={styles.title}><FiShoppingCart /> ตะกร้าสินค้าของฉัน</h1>
 
             {/* รายการสินค้า */}
             <div style={styles.card}>
                 {cart.map((item) => (
                     <div key={item.id} style={styles.itemRow}>
                         <div style={styles.itemInfo}>
+                            {/* ✅ แก้ไขให้ใช้ getURL() แทนการต่อ String เอง */}
                             <img 
-                                src={item.image ? `${POCKETBASE_URL}/api/files/products/${item.id}/${item.image}` : 'https://via.placeholder.com/80'} 
+                                src={item.image ? pb.files.getURL(item, item.image) : 'https://via.placeholder.com/80'} 
                                 alt={item.name} 
                                 style={styles.itemImg} 
                             />
@@ -261,7 +284,9 @@ export default function CartPage() {
                     <span>฿{(totalPrice + (deliveryType === 'delivery' ? 50 : 0)).toLocaleString()}</span>
                 </div>
                 
-                <button onClick={handleCheckout} style={styles.checkoutBtn}>ยืนยันการสั่งซื้อ</button>
+                <button onClick={handleCheckout} style={styles.checkoutBtn}>
+                    <FiCreditCard /> ยืนยันการสั่งซื้อ
+                </button>
             </div>
         </div>
     );

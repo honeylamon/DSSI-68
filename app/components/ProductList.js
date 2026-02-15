@@ -11,17 +11,12 @@ export default function ProductList({ productsWithImages }) {
     }
     
     const handleAddToCart = (product) => {
-        // ✅ ตรวจสอบข้อมูลก่อนส่งเข้าตะกร้า (Debug)
-        console.log("Adding product to cart:", product);
+        // ✅ ป้องกันการกดเพิ่มลงตะกร้าถ้าสินค้าหมด
+        if (product.stock <= 0) return;
 
-        // ✅ สร้าง Object สินค้าใหม่ เพื่อให้แน่ใจว่ามีข้อมูลครบถ้วน โดยเฉพาะรูปภาพ
         const itemToAdd = {
-            ...product, // ดึงข้อมูลเดิมมาทั้งหมด (id, name, price)
-            
-            // ✅ บังคับส่งชื่อไฟล์รูปภาพ (ใช้ picture ตาม Database ของคุณ)
+            ...product,
             picture: product.picture || product.image, 
-            
-            // ✅ บังคับส่ง collectionId (จำเป็นสำหรับสร้าง URL รูปภาพ)
             collectionId: product.collectionId || 'products'
         };
 
@@ -40,6 +35,9 @@ export default function ProductList({ productsWithImages }) {
             {productsWithImages.map(({ product, imageUrl }) => {
                 if (!product) return null;
 
+                // ✅ เช็คสถานะสินค้าหมด (Stock <= 0)
+                const isSoldOut = product.stock <= 0;
+
                 return (
                     <div key={product.id} style={{
                         border: '1px solid #e0e0e0',
@@ -49,13 +47,14 @@ export default function ProductList({ productsWithImages }) {
                         boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
                         display: 'flex',
                         flexDirection: 'column',
-                        justifyContent: 'space-between'
+                        justifyContent: 'space-between',
+                        opacity: isSoldOut ? 0.8 : 1 // ทำให้กล่องดูจางลงเล็กน้อยถ้าของหมด
                     }}>
                         {/* ส่วนรูปภาพ */}
                         <div style={{ 
                             position: 'relative', 
                             width: '100%', 
-                            paddingTop: '100%', // อัตราส่วน 1:1
+                            paddingTop: '100%', 
                             marginBottom: '10px',
                             borderRadius: '8px',
                             overflow: 'hidden',
@@ -71,7 +70,8 @@ export default function ProductList({ productsWithImages }) {
                                         left: 0,
                                         width: '100%',
                                         height: '100%',
-                                        objectFit: 'cover'
+                                        objectFit: 'cover',
+                                        opacity: isSoldOut ? 0.5 : 1 // ✅ ถ้าหมดให้รูปจางลงเพื่อให้ข้อความชัดขึ้น
                                     }}
                                 />
                             ) : (
@@ -82,16 +82,43 @@ export default function ProductList({ productsWithImages }) {
                                     No Image
                                 </div>
                             )}
+
+                            {/* ✅ เพิ่ม Overlay "สินค้าหมด" ทับรูปภาพ */}
+                            {isSoldOut && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    backgroundColor: 'rgba(0,0,0,0.5)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    zIndex: 2
+                                }}>
+                                    <span style={{
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        padding: '5px 12px',
+                                        borderRadius: '4px',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.9rem'
+                                    }}>
+                                        สินค้าหมด
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {/* ข้อมูลสินค้า */}
                         <div style={{ marginBottom: '10px' }}>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0 0 5px 0', color: '#333' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: '0 0 5px 0', color: isSoldOut ? '#999' : '#333' }}>
                                 {product.name}
                             </h3>
                             <p style={{ 
                                 margin: 0, 
-                                color: '#666', 
+                                color: isSoldOut ? '#ccc' : '#666', 
                                 fontSize: '0.9rem',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
@@ -101,26 +128,27 @@ export default function ProductList({ productsWithImages }) {
                             </p>
                         </div>
 
-                        {/* ปุ่มกด (ดันลงล่างสุด) */}
+                        {/* ปุ่มกด */}
                         <div style={{ marginTop: 'auto' }}>
-                            <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#3e594b', marginBottom: '10px' }}>
+                            <p style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isSoldOut ? '#ccc' : '#3e594b', marginBottom: '10px' }}>
                                 {product.price ? product.price.toLocaleString() : 0} บาท
                             </p>
                             <button 
                                 onClick={() => handleAddToCart(product)} 
+                                disabled={isSoldOut} // ✅ ปิดการทำงานปุ่มถ้าสินค้าหมด
                                 style={{
                                     width: '100%',
                                     padding: '10px',
-                                    backgroundColor: '#3e594b',
+                                    backgroundColor: isSoldOut ? '#9ca3af' : '#3e594b', // ✅ เปลี่ยนสีปุ่มเป็นสีเทาถ้าของหมด
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '6px',
-                                    cursor: 'pointer',
+                                    cursor: isSoldOut ? 'not-allowed' : 'pointer',
                                     transition: '0.2s',
                                     fontWeight: 'bold'
                                 }}
                             >
-                                + เพิ่มลงตะกร้า
+                                {isSoldOut ? 'สินค้าหมด' : '+ เพิ่มลงตะกร้า'}
                             </button>
                         </div>
                     </div>

@@ -37,16 +37,13 @@ export default function SearchBar() {
       if (!response.ok) throw new Error('การเชื่อมต่อล้มเหลว');
 
       const result = await response.json();
-      
-      // ดึงคำตอบ
-      if (result.outputs?.[0]?.data?.concepts?.length > 0) {
-        const aiAnswer = result.outputs[0].data.concepts[0].name;
-        console.log("AI ตอบว่า:", aiAnswer);
-        
-        setQuery(aiAnswer); 
-        router.push(`/search?q=${encodeURIComponent(aiAnswer)}`);
-      } else {
-        alert('AI มองไม่ออกว่าเป็นรูปอะไร');
+
+      if (result.success) {
+      console.log("AI จับคู่รูปได้:", result.matchedImageId);
+  // คุณสามารถพาลูกค้าไปหน้าสินค้านั้นได้เลย เช่น:
+  // router.push(`/product/${result.matchedImageId}`);
+       } else {
+      alert('ไม่พบสินค้าที่หน้าตาเหมือนรูปนี้ในร้านเลยครับ');
       }
 
     } catch (error) {

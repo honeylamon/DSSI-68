@@ -75,7 +75,7 @@ export default function ProfilePage() {
             data.append('phone', formData.phone);
             data.append('address', formData.address);
             data.append('city', formData.city);
-            data.append('postcode', formData.postalCode); // เช็คชื่อ field ใน PocketBase ให้ตรง
+            data.append('postalCode', formData.postalCode); // เช็คชื่อ field ใน PocketBase ให้ตรง
 
             if (formData.avatar) {
                 data.append('avatar', formData.avatar);

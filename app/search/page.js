@@ -52,7 +52,7 @@ export default async function SearchPage({ searchParams }) {
                 
                 {products.length === 0 && (
                     <div style={{ marginTop: '40px', textAlign: 'center' }}>
-                        <p style={{ fontSize: '1.2rem', color: '#888' }}>ไม่พบสินค้าที่ค้นหา ลองใช้คำอื่นดูนะครับ</p>
+                        <p style={{ fontSize: '1.2rem', color: '#888' }}>ไม่พบสินค้าที่ค้นหา</p>
                         <Link href="/" style={{ color: 'blue', textDecoration: 'underline', marginTop: '10px', display: 'inline-block' }}>
                             กลับไปเลือกสินค้าหน้าแรก
                         </Link>

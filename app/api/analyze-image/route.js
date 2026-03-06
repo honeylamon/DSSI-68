@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 
-// 🔴 1. ใส่ Key ใหม่ของคุณตรงนี้ (ห้ามใช้ตัวเดิมที่ขึ้นต้นด้วย f7c...)
-const CLARIFAI_PAT = '045f82dd01134d2fa616eafeac6ccad8'; 
+// 1. ใส่ Key ของคุณ (แนะนำให้ใช้ Key จากบัญชีใหม่ที่ยังมีเครดิต)
+const CLARIFAI_PAT = '4f7672ba6c24468eaf049f1caf6fc733'; 
+const USER_ID = 'bobbabiya'; // เช่น 'my-username'
+const APP_ID = 'Baanjoy';   // เช่น 'my-shop-catalog'
 
 export async function POST(request) {
     try {
@@ -12,30 +14,28 @@ export async function POST(request) {
             return NextResponse.json({ error: 'No image data' }, { status: 400 });
         }
 
-        // ✅ ใช้ URL แบบมาตรฐานที่สุด (ชี้ไปที่โมเดล Food Recognition V1.0)
-        const MODEL_URL = "https://api.clarifai.com/v2/models/food-item-recognition/versions/1d5fd481e0cf4826aa72ec3ff049e044/outputs";
+        // ✅ เปลี่ยน URL เป็น Endpoint สำหรับการ "ค้นหา (Search)"
+        const SEARCH_URL = `https://api.clarifai.com/v2/users/${USER_ID}/apps/${APP_ID}/searches`;
 
         const raw = JSON.stringify({
-            // ✅ จุดสำคัญ: ระบุว่า "ฉันกำลังจะใช้โมเดลของ user: clarifai ใน app: main"
-            // (ต้องใส่ตรงนี้ เพื่อแก้ Error 11102 / Model not found)
-            "user_app_id": {
-                "user_id": "clarifai",
-                "app_id": "main"
-            },
-            "inputs": [
-                {
-                    "data": {
-                        "image": {
-                            "base64": imageBase64
+            "query": {
+                "ranks": [
+                    {
+                        "annotation": {
+                            "data": {
+                                "image": {
+                                    "base64": imageBase64
+                                }
+                            }
                         }
                     }
-                }
-            ]
+                ]
+            }
         });
 
-        console.log("🚀 กำลังส่งรูปไปถาม AI...");
+        console.log("🚀 กำลังส่งรูปไปค้นหาในฐานข้อมูลสินค้าของเรา...");
 
-        const response = await fetch(MODEL_URL, {
+        const response = await fetch(SEARCH_URL, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
@@ -53,13 +53,26 @@ export async function POST(request) {
 
         const result = await response.json();
         
-        // เช็คว่า AI ตอบอะไรกลับมาบ้าง (ดูใน Terminal)
-        if (result.outputs?.[0]?.data?.concepts) {
-            const topAnswer = result.outputs[0].data.concepts[0].name;
-            console.log("✅ AI ทายว่า:", topAnswer);
+        // ✅ ดึงข้อมูลรูปภาพในคลังของเราที่ "หน้าตาเหมือนที่สุด"
+        if (result.hits && result.hits.length > 0) {
+            // ระบบจะเรียงลำดับความเหมือนจากมากไปน้อย (hits[0] คือเหมือนสุด)
+            const bestMatchScore = result.hits[0].score; // ความแม่นยำ (เช่น 0.95 คือเหมือน 95%)
+            const bestMatchImageUrl = result.hits[0].input.data.image.url; // URL ของรูปในคลัง
+            const bestMatchId = result.hits[0].input.id; // รหัสอ้างอิงรูปภาพ
+            
+            console.log(`✅ เจอสินค้าที่เหมือนที่สุด! (ความแม่นยำ: ${bestMatchScore})`);
+            console.log(`ID สินค้า: ${bestMatchId}`);
+            
+            // ส่งข้อมูลนี้กลับไปให้หน้าเว็บ (Frontend) ไปจัดการต่อ
+            return NextResponse.json({
+                success: true,
+                matchScore: bestMatchScore,
+                matchedImageId: bestMatchId,
+                matchedImageUrl: bestMatchImageUrl
+            });
+        } else {
+             return NextResponse.json({ success: false, message: 'ไม่พบสินค้าที่ใกล้เคียง' });
         }
-
-        return NextResponse.json(result);
 
     } catch (error) {
         console.error("❌ Server Error:", error);

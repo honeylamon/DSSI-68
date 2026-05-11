@@ -9,12 +9,7 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
     const [previewUrl, setPreviewUrl] = useState(null);
 
     const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    setFormData(prev => ({
-        ...prev,
-        [name]: name === 'picture' ? files[0] : value // ถ้าไม่ใช่รูป ให้เก็บ value (ซึ่งตอนนี้คือ ID)
-    }));
-};
+        const { name, value, files } = e.target;
         
         if (name === "picture") {
             const file = files[0];
@@ -24,10 +19,12 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
                 onUpdate(rowData.id, { picture: file });
             }
         } else {
+            // ส่งค่ากลับไปยังคอมโพเนนต์แม่เพื่ออัปเดตข้อมูล
             onUpdate(rowData.id, { [name]: value });
         }
     };
 
+    // ย้าย useEffect มาไว้ข้างในฟังก์ชันหลักตามกฎของ React
     useEffect(() => {
         return () => {
             if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -59,9 +56,8 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
                     <Image
                         src={displayImageUrl}
                         alt="Preview"
-                        layout="fill"
-                        objectFit="cover"
-                        style={{ borderRadius: '4px' }}
+                        fill
+                        style={{ borderRadius: '4px', objectFit: 'cover' }}
                     />
                 </div>
                 <label htmlFor={uniqueFileId} style={{ fontSize: '10px', color: '#007bff', cursor: 'pointer' }}>
@@ -74,6 +70,7 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
             <input type="text" name="name" placeholder="ชื่อสินค้า" value={rowData.name || ''} onChange={handleChange} style={{ flex: 3, padding: '8px' }}/>
             <input type="number" name="price" placeholder="ราคา" value={rowData.price || ''} onChange={handleChange} style={{ flex: 1, padding: '8px' }}/>
             <input type="number" name="stock" placeholder="คงเหลือ" value={rowData.stock || ''} onChange={handleChange} style={{ flex: 1, padding: '8px' }}/>
+            
             <select name="relation" value={rowData.relation || ''} onChange={handleChange} style={{ flex: 2, padding: '8px' }}>
                 <option value="">เลือกหมวดหมู่</option>
                 {categories.map(cat => (
@@ -89,3 +86,4 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
             </div>
         </div>
     );
+}

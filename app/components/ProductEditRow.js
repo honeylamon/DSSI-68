@@ -19,12 +19,11 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
                 onUpdate(rowData.id, { picture: file });
             }
         } else {
-            // ส่งค่ากลับไปยังคอมโพเนนต์แม่เพื่ออัปเดตข้อมูล
+            // ส่งค่ากลับไปอัปเดตที่ตัวแม่
             onUpdate(rowData.id, { [name]: value });
         }
     };
 
-    // ย้าย useEffect มาไว้ข้างในฟังก์ชันหลักตามกฎของ React
     useEffect(() => {
         return () => {
             if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -32,9 +31,7 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
     }, [previewUrl]);
 
     const getImageUrl = () => {
-        if (previewUrl) {
-            return previewUrl;
-        }
+        if (previewUrl) return previewUrl;
         if (isExisting && rowData.picture) {
             try {
                 return pb.files.getUrl(rowData, rowData.picture, { thumb: '100x100' });

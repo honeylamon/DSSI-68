@@ -43,7 +43,7 @@ export default async function SearchPage({ searchParams }) {
 
         return (
             <div style={{ padding: '2rem' }}>
-                <h1 style={{ marginBottom: '20px' }}>ผลการค้นหา: "{query}"</h1>
+                <h1 style={{ marginBottom: '20px' }}>ผลการค้นหา: &quot;{query}&quot;</h1>
                 <p style={{ color: '#666', marginBottom: '20px' }}>
                     พบสินค้า {products.length} รายการ
                 </p>

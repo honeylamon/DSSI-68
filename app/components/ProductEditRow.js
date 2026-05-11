@@ -89,4 +89,3 @@ export default function ProductEditRow({ rowData, onUpdate, onDelete, onSave, ca
             </div>
         </div>
     );
-}

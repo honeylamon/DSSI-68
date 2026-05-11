@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import pb from '@/app/lib/pocketbase';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function OrderDetailsClient({ orderId }) {
     const { user } = useAuth();

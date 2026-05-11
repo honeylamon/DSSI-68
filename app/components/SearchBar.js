@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaSearch, FaCamera, FaSpinner } from 'react-icons/fa'; 
+import { FaSearch, FaCamera, FaSpinner } from 'react-icons/fa';
 
 export default function SearchBar() {
   const [query, setQuery] = useState('');
@@ -20,34 +20,35 @@ export default function SearchBar() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
+    e.target.value = '';
     setLoading(true);
 
     try {
       const base64 = await convertToBase64(file);
-      const imageBytes = base64.split(',')[1]; 
+      const imageBytes = base64.split(',')[1];
 
-      // ✅ จุดเปลี่ยนสำคัญ: เรียกใช้ API ของเราเอง (ไม่เรียก Clarifai ตรงๆ แล้ว)
       const response = await fetch('/api/analyze-image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageBase64: imageBytes })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: imageBytes })
       });
 
       if (!response.ok) throw new Error('การเชื่อมต่อล้มเหลว');
 
       const result = await response.json();
 
-      if (result.success) {
-      console.log("AI จับคู่รูปได้:", result.matchedImageId);
-  // คุณสามารถพาลูกค้าไปหน้าสินค้านั้นได้เลย เช่น:
-  // router.push(`/product/${result.matchedImageId}`);
-       } else {
-      alert('ไม่พบสินค้าที่หน้าตาเหมือนรูปนี้ในร้านเลยครับ');
+      if (result.success && result.matchedImageId) {
+        // จับคู่สินค้าได้ → ไปหน้าสินค้าเลย
+        router.push(`/product/${result.matchedImageId}`);
+      } else if (result.searchKeyword) {
+        // จับคู่ไม่ได้ → ค้นหาด้วย keyword แทน
+        router.push(`/search?q=${encodeURIComponent(result.searchKeyword)}`);
+      } else {
+        alert('ไม่พบสินค้าที่หน้าตาเหมือนรูปนี้ในร้านเลยครับ');
       }
 
     } catch (error) {
-      console.error("Error:", error);
+      console.error('Error:', error);
       alert('เกิดข้อผิดพลาด ลองใหม่อีกครั้ง');
     } finally {
       setLoading(false);
@@ -68,7 +69,7 @@ export default function SearchBar() {
       <div style={{ position: 'relative', width: '100%' }}>
         <input
           type="text"
-          placeholder={loading ? "AI กำลังวิเคราะห์..." : "ค้นหาสินค้า..."}
+          placeholder={loading ? 'AI กำลังวิเคราะห์...' : 'ค้นหาสินค้า...'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           disabled={loading}
@@ -76,7 +77,7 @@ export default function SearchBar() {
         />
         <button
           type="button"
-          onClick={() => fileInputRef.current.click()} 
+          onClick={() => fileInputRef.current.click()}
           disabled={loading}
           style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#666' }}
         >

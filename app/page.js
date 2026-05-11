@@ -8,233 +8,193 @@ import {
     Container, 
     Grid, 
     Card, 
-    CardMedia, 
     CardContent, 
     Typography, 
     Skeleton, 
-    CardActionArea 
+    CardActionArea,
+    Button 
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
-// ✅ เรียกใช้ pb จาก lib กลาง
+import { useCart } from '@/app/contexts/CartContext'; 
 import pb from '@/app/lib/pocketbase'; 
-import Banner from './components/Banner'; // แบนเนอร์ (ถ้ามี)
+import Banner from './components/Banner'; 
+
+// ✅ 1. เพิ่มชุดข้อมูลโปรโมชั่นเพื่อให้ตรงกับหน้า Admin
+const PROMO_OPTIONS = [
+    { label: 'ไม่มีโปรโมชั่น', value: 'none' },
+    { label: 'ลด 50%', value: 'discount' },
+    { label: '1 แถม 1', value: 'Buy One, Get One' },
+    { label: 'สินค้าแนะนำ', value: 'featured' },
+    { label: 'โปรโมชั่น', value: 'Promotion' }
+];
+
+const getPromoLabel = (value) => {
+    const option = PROMO_OPTIONS.find(opt => opt.value === value);
+    return option ? option.label : (value || '-');
+};
 
 // --- Styled Components ---
+
+// ✅ แก้ไขสไตล์การ์ดหมวดหมู่ให้บังคับความสูงเท่ากัน
+const CategoryCard = styled(Card)(({ theme }) => ({
+    height: '180px', // 📌 บังคับความสูงคงที่เพื่อให้ทุกใบเท่ากัน
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '16px',
+    padding: '16px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+        transform: 'translateY(-5px)',
+        boxShadow: theme.shadows[4],
+    },
+}));
+
 const StyledCard = styled(Card)(({ theme }) => ({
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    transition: 'all 0.3s ease',
-    cursor: 'pointer',
+    position: 'relative',
     borderRadius: '16px',
     overflow: 'hidden',
     boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
     '&:hover': {
         transform: 'translateY(-5px)',
-        boxShadow: theme.shadows[10],
+        boxShadow: theme.shadows[8],
     },
 }));
 
-const StyledCardContent = styled(CardContent)({
-    flexGrow: 1,
-    textAlign: 'center',
-    backgroundColor: '#fff',
-    padding: '15px !important',
-});
-
-// สไตล์แบนเนอร์โปรโมชั่น (เผื่อใช้ในหน้านี้)
-const PromoBanner = styled('div')({
-    width: '100%',
-    height: '320px', 
-    borderRadius: '20px',
-    overflow: 'hidden',
-    position: 'relative',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-    cursor: 'pointer',
-    '&:hover img': {
-        transform: 'scale(1.05)',
-    },
-    '@media (max-width: 600px)': {
-        height: '200px',
-    },
-});
-
-const TextOverlay = styled('div')({
+const PromoBadge = styled(Box)({
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '100%',
-    background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)', 
-    padding: '20px',
-    color: 'white',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-end',
-    height: '60%'
+    top: '12px',
+    left: '12px',
+    backgroundColor: '#fff7ed',
+    color: '#f59e0b',
+    padding: '4px 10px',
+    borderRadius: '6px',
+    fontSize: '0.75rem',
+    fontWeight: 'bold',
+    border: '1px solid #ffedd5',
+    zIndex: 2,
+});
+
+const OutOfStockOverlay = styled(Box)({
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    display: 'flex', justifyContent: 'center', alignItems: 'center',
+    zIndex: 3,
 });
 
 export default function HomePage() {
     const [categories, setCategories] = useState([]);
-    const [promotions, setPromotions] = useState([]); 
+    const [allProducts, setAllProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { addToCart } = useCart(); 
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // 1. ดึง Categories
-                // ✅ ใส่ requestKey: null เพื่อแก้ปัญหา autocancelled
-                const catResult = await pb.collection('categories').getFullList({
-                    sort: 'created',
-                    requestKey: null 
-                });
-                console.log("Categories:", catResult); 
+                const [catResult, productsResult] = await Promise.all([
+                    pb.collection('categories').getFullList({ sort: 'created', requestKey: null }),
+                    pb.collection('products').getFullList({ sort: '-created', requestKey: null })
+                ]);
                 setCategories(catResult);
-
-                // 2. ดึง Promotions
-                try {
-                    // ✅ ใส่ requestKey: null เช่นกัน
-                    const promoResult = await pb.collection('products').getList(1, 5, { 
-                        sort: '-created',
-                        filter: 'promoType != ""',
-                        requestKey: null
-                    });
-                    setPromotions(promoResult.items);
-                } catch (err) {
-                    // ถ้า error เพราะถูกยกเลิก เราจะไม่แสดง error แดงๆ
-                    if (err.name !== 'ClientResponseError' || err.status !== 0) {
-                        console.error("Error fetching promotions:", err);
-                    }
-                }
-
-            } catch (error) {
-                // ป้องกันการแจ้งเตือน error ที่ไม่จำเป็น
-                if (error.name !== 'ClientResponseError' || error.status !== 0) {
-                    console.error("Error fetching data:", error);
-                }
-            } finally {
-                setLoading(false);
-            }
+                setAllProducts(productsResult);
+            } catch (error) { console.error(error); }
+            finally { setLoading(false); }
         };
-
         fetchData();
     }, []);
 
-    // Helper สร้าง URL รูปภาพ
     const getImageUrl = (record, fileName) => {
         if (!fileName) return 'https://via.placeholder.com/400x300?text=No+Image';
         return `${pb.baseUrl}/api/files/${record.collectionId}/${record.id}/${fileName}`;
     };
 
     return (
-        <Box sx={{ backgroundColor: '#f8f9fa', minHeight: '100vh', pb: 10 }}>
-            
-            {/* แบนเนอร์หลัก */}
+        <Box sx={{ backgroundColor: '#f8f9fa', minHeight: '100vh', pb: 10, fontFamily: "'Kanit', sans-serif" }}>
             <Banner />
-
             <Container maxWidth="lg" sx={{ pt: 5 }}>
 
-                {/* --- 📦 ส่วนที่ 1: หมวดหมู่สินค้า --- */}
-                <Typography variant="h5" component="h2" sx={{ fontWeight: 800, color: '#1A4D2E', mb: 3, borderLeft: '6px solid #1A4D2E', pl: 2, borderRadius:'2px' }}>
-                    หมวดหมู่สินค้า
-                </Typography>
-
-                {loading ? (
-                    <Grid container spacing={3} sx={{ mb: 6 }}>
-                        {[1, 2, 3, 4].map((item) => (
-                            <Grid item xs={12} sm={6} md={3} key={item}>
-                                <Skeleton variant="rectangular" height={220} sx={{ borderRadius: '16px' }} />
-                            </Grid>
-                        ))}
-                    </Grid>
-                ) : (
-                    <Grid container spacing={3} sx={{ mb: 8 }}>
-                        {categories.map((category) => {
-                            // ดึงรูปภาพ (เช็คหลายชื่อเผื่อไว้)
-                            const catImage = category.image || category.img || category.picture || category.icon;
-                            const imageUrl = getImageUrl(category, catImage);
-
-                            return (
-                                <Grid item xs={12} sm={6} md={3} key={category.id}>
-                                    <Link href={`/category/${category.id}`} passHref style={{ textDecoration: 'none' }}>
-                                        <CardActionArea sx={{ borderRadius: '16px' }}>
-                                            <StyledCard elevation={0}>
-                                                
-                                                <div style={{ position: 'relative', width: '100%', paddingTop: '80%', backgroundColor: '#f9f9f9' }}>
-                                                    <Image
-                                                        src={imageUrl}
-                                                        alt={category.name}
-                                                        fill
-                                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                                        style={{ objectFit: 'cover' }}
-                                                    />
-                                                </div>
-
-                                                <StyledCardContent>
-                                                    <Typography variant="h6" component="h3" sx={{ fontWeight: 700, color: '#2d3748', fontSize: '1.1rem' }}>
-                                                        {category.name}
-                                                    </Typography>
-                                                </StyledCardContent>
-                                            </StyledCard>
-                                        </CardActionArea>
-                                    </Link>
-                                </Grid>
-                            );
-                        })}
-                    </Grid>
-                )}
-
-                {/* --- 🔥 ส่วนที่ 2: โปรโมชั่นแนะนำ --- */}
-                {!loading && promotions.length > 0 && (
-                    <Box sx={{ mb: 6 }}>
-                        <Typography variant="h5" component="h2" sx={{ fontWeight: 800, color: '#1A4D2E', mb: 3, display:'flex', alignItems:'center', gap:1 }}>
-                            🔥 โปรโมชั่นแนะนำ
-                        </Typography>
-                        
-                        <Grid container spacing={3}>
-                            {promotions.map((product) => {
-                                const imgName = product.picture || product.image;
-                                const imgUrl = getImageUrl(product, imgName);
-
-                                return (
-                                    <Grid item xs={12} md={promotions.length === 1 ? 12 : 6} key={product.id}>
-                                        <Link href={`/product/${product.id}`} passHref style={{textDecoration:'none'}}>
-                                            <PromoBanner>
-                                                <Image
-                                                    src={imgUrl}
-                                                    alt={product.name}
-                                                    fill
-                                                    style={{ objectFit: 'cover', transition: 'transform 0.5s' }}
+                {/* --- หมวดหมู่สินค้า (ฉบับแก้ไขขนาด) --- */}
+                <Typography variant="h5" sx={{ fontWeight: 800, color: '#1A4D2E', mb: 3, borderLeft: '6px solid #1A4D2E', pl: 2 }}>หมวดหมู่สินค้า</Typography>
+                <Grid container spacing={2} sx={{ mb: 8 }}>
+                    {loading ? [1,2,3,4,5].map(i => <Grid item xs={6} sm={4} md={2.4} key={i}><Skeleton variant="rectangular" height={180} sx={{ borderRadius: '16px' }} /></Grid>) : (
+                        categories.map((category) => (
+                            <Grid item xs={6} sm={4} md={2.4} key={category.id}>
+                                <Link href={`/category/${category.id}`} style={{ textDecoration: 'none' }}>
+                                    <CardActionArea sx={{ borderRadius: '16px' }}>
+                                        <CategoryCard elevation={0}>
+                                            {/* 🖼️ บังคับรูปกึ่งกลางและขนาดพอดี */}
+                                            <Box sx={{ 
+                                                position: 'relative', 
+                                                width: '100%', 
+                                                height: '100px', // บังคับความสูงรูปภาพ
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                mb: 1
+                                            }}>
+                                                <Image 
+                                                    src={getImageUrl(category, category.image || category.picture)} 
+                                                    alt={category.name} fill sizes="20vw"
+                                                    style={{ objectFit: 'contain', padding: '5px' }} 
                                                 />
-                                                
-                                                <TextOverlay>
-                                                    <span style={{ 
-                                                        backgroundColor: '#ff3d00', 
-                                                        color: 'white', 
-                                                        padding: '4px 10px', 
-                                                        borderRadius: '4px', 
-                                                        fontSize: '0.9rem', 
-                                                        fontWeight: 'bold',
-                                                        alignSelf: 'flex-start',
-                                                        marginBottom: '5px',
-                                                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                                                    }}>
-                                                        {product.promoType}
-                                                    </span>
-                                                    <Typography variant="h6" sx={{ fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                                                        {product.name}
-                                                    </Typography>
-                                                </TextOverlay>
-                                            </PromoBanner>
-                                        </Link>
-                                    </Grid>
-                                );
-                            })}
-                        </Grid>
-                    </Box>
-                )}
+                                            </Box>
+                                            <Typography sx={{ 
+                                                fontWeight: 700, color: '#333', fontSize: '0.95rem',
+                                                textAlign: 'center', width: '100%',
+                                                overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical'
+                                            }}>
+                                                {category.name}
+                                            </Typography>
+                                        </CategoryCard>
+                                    </CardActionArea>
+                                </Link>
+                            </Grid>
+                        ))
+                    )}
+                </Grid>
 
+                {/* --- สินค้าทั้งหมด --- */}
+                <Typography variant="h5" sx={{ fontWeight: 800, color: '#1A4D2E', mb: 3, borderLeft: '6px solid #1A4D2E', pl: 2 }}>สินค้าทั้งหมด</Typography>
+                <Grid container spacing={2}>
+                    {loading ? [1,2,3,4,5].map(i => <Grid item xs={6} sm={4} md={2.4} key={i}><Skeleton variant="rectangular" height={300} sx={{ borderRadius: '16px' }} /></Grid>) : (
+                        allProducts.map((product) => (
+                            <Grid item xs={6} sm={4} md={2.4} key={product.id}>
+                                <StyledCard elevation={0}>
+                                    {product.stock <= 0 && <OutOfStockOverlay><Box sx={{ bgcolor: '#ef4444', color: 'white', px: 2, py: 1, borderRadius: 2, fontWeight: 'bold' }}>สินค้าหมด</Box></OutOfStockOverlay>}
+                                    {product.stock > 0 && product.promoType && product.promoType !== 'none' && <PromoBadge>{getPromoLabel(product.promoType)}</PromoBadge>}
+                                    <Link href={`/product/${product.id}`} style={{ textDecoration: 'none' }}>
+                                        <Box sx={{ position: 'relative', width: '100%', pt: '100%', backgroundColor: '#fff' }}>
+                                            <Image src={getImageUrl(product, product.picture)} alt={product.name} fill style={{ objectFit: 'contain', padding: '10px' }} />
+                                        </Box>
+                                    </Link>
+                                    <CardContent sx={{ p: '12px !important', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                        <Box>
+                                            <Typography variant="body2" sx={{ fontWeight: 600, height: '2.8em', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', color: '#2d3748' }}>{product.name}</Typography>
+                                            <Typography variant="h6" sx={{ color: '#1A4D2E', fontWeight: 800, my: 1 }}>฿{product.price?.toLocaleString()}</Typography>
+                                        </Box>
+                                        <Button 
+                                            variant="contained" fullWidth disabled={product.stock <= 0}
+                                            onClick={(e) => { e.preventDefault(); addToCart({ ...product, quantity: 1 }); }}
+                                            sx={{ bgcolor: '#1A4D2E', borderRadius: '8px', textTransform: 'none' }}
+                                        >
+                                            {product.stock <= 0 ? 'สินค้าหมด' : '+ เพิ่มลงตะกร้า'}
+                                        </Button>
+                                    </CardContent>
+                                </StyledCard>
+                            </Grid>
+                        ))
+                    )}
+                </Grid>
             </Container>
         </Box>
     );

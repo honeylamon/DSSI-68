@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 
-// 1. ใส่ Key ของคุณ (แนะนำให้ใช้ Key จากบัญชีใหม่ที่ยังมีเครดิต)
-const CLARIFAI_PAT = '4f7672ba6c24468eaf049f1caf6fc733'; 
-const USER_ID = 'bobbabiya'; // เช่น 'my-username'
-const APP_ID = 'Baanjoy';   // เช่น 'my-shop-catalog'
+const CLARIFAI_PAT = '58651d7fe1f54147968861e01ba720db';
+const USER_ID = 'bobbabiya';
+const APP_ID = 'Baanjoy';
 
 export async function POST(request) {
     try {
@@ -14,13 +13,12 @@ export async function POST(request) {
             return NextResponse.json({ error: 'No image data' }, { status: 400 });
         }
 
-        // ✅ เปลี่ยน URL เป็น Endpoint สำหรับการ "ค้นหา (Search)"
-        const SEARCH_URL = `https://api.clarifai.com/v2/users/${USER_ID}/apps/${APP_ID}/searches`;
+        const SEARCH_URL = `https://api.clarifai.com/v2/users/${USER_ID}/apps/${APP_ID}/inputs/searches`;
 
         const raw = JSON.stringify({
-            "query": {
-                "ranks": [
-                    {
+            "searches": [{
+                "query": {
+                    "ranks": [{
                         "annotation": {
                             "data": {
                                 "image": {
@@ -28,12 +26,12 @@ export async function POST(request) {
                                 }
                             }
                         }
-                    }
-                ]
-            }
+                    }]
+                }
+            }]
         });
 
-        console.log("🚀 กำลังส่งรูปไปค้นหาในฐานข้อมูลสินค้าของเรา...");
+        console.log("🚀 กำลังส่งรูปไปค้นหาในฐานข้อมูลสินค้า...");
 
         const response = await fetch(SEARCH_URL, {
             method: 'POST',
@@ -48,30 +46,25 @@ export async function POST(request) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error("❌ Clarifai API Error:", errorText);
-            throw new Error(`AI ตอบกลับมาว่า Error (${response.status}): ${errorText}`);
+            throw new Error(`Clarifai error (${response.status}): ${errorText}`);
         }
 
         const result = await response.json();
-        
-        // ✅ ดึงข้อมูลรูปภาพในคลังของเราที่ "หน้าตาเหมือนที่สุด"
-        if (result.hits && result.hits.length > 0) {
-            // ระบบจะเรียงลำดับความเหมือนจากมากไปน้อย (hits[0] คือเหมือนสุด)
-            const bestMatchScore = result.hits[0].score; // ความแม่นยำ (เช่น 0.95 คือเหมือน 95%)
-            const bestMatchImageUrl = result.hits[0].input.data.image.url; // URL ของรูปในคลัง
-            const bestMatchId = result.hits[0].input.id; // รหัสอ้างอิงรูปภาพ
-            
-            console.log(`✅ เจอสินค้าที่เหมือนที่สุด! (ความแม่นยำ: ${bestMatchScore})`);
-            console.log(`ID สินค้า: ${bestMatchId}`);
-            
-            // ส่งข้อมูลนี้กลับไปให้หน้าเว็บ (Frontend) ไปจัดการต่อ
+        const hits = result.hits ?? [];
+
+        if (hits.length > 0) {
+            const best = hits[0];
+            console.log(`✅ เจอสินค้าที่เหมือนที่สุด! (score: ${best.score})`);
+            console.log(`ID: ${best.input?.id}`);
+
             return NextResponse.json({
                 success: true,
-                matchScore: bestMatchScore,
-                matchedImageId: bestMatchId,
-                matchedImageUrl: bestMatchImageUrl
+                matchScore: best.score,
+                matchedImageId: best.input?.id,
+                matchedImageUrl: best.input?.data?.image?.url
             });
         } else {
-             return NextResponse.json({ success: false, message: 'ไม่พบสินค้าที่ใกล้เคียง' });
+            return NextResponse.json({ success: false, message: 'ไม่พบสินค้าที่ใกล้เคียง' });
         }
 
     } catch (error) {
